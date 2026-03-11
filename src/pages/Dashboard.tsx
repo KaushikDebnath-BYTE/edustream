@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, BookOpen, LogOut, MoreVertical, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Search, BookOpen, LogOut, MoreVertical, Edit2 } from 'lucide-react';
 import { supabase, type Lesson } from '../lib/supabase';
+import { DeleteLessonButton } from '../components/DeleteLessonButton';
 
 export default function Dashboard() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
@@ -170,13 +171,10 @@ export default function Dashboard() {
                 >
                   <Edit2 size={16} /> Edit Materials
                 </button>
-                <button 
-                  onClick={() => alert('Delete functionality not implemented in stub')}
-                  className="px-3 hover:bg-red-50 text-slate-400 hover:text-red-600 py-2 rounded-lg text-sm font-medium border border-slate-200 transition-colors shadow-sm"
-                  title="Delete Lesson"
-                >
-                  <Trash2 size={16} />
-                </button>
+                <DeleteLessonButton 
+                  lessonId={lesson.id} 
+                  onSuccess={() => setLessons(prev => prev.filter(l => l.id !== lesson.id))} 
+                />
               </div>
             </div>
           ))}
