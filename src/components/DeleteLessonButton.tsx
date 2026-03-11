@@ -45,7 +45,7 @@ export function DeleteLessonButton({ lessonId, onSuccess }: DeleteLessonButtonPr
     <button 
       onClick={handleDelete}
       disabled={isDeleting}
-      className={`px-3 hover:bg-red-50 text-slate-400 hover:text-red-600 py-2 rounded-lg text-sm font-medium border border-slate-200 transition-colors shadow-sm ${
+      className={`px-3 hover:bg-red-900/20 text-slate-400 hover:text-red-400 py-2 rounded-lg text-sm font-medium border border-slate-800 transition-colors shadow-sm ${
         isDeleting ? 'opacity-50 cursor-not-allowed' : ''
       }`}
       title="Delete Lesson"

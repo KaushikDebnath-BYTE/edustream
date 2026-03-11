@@ -7,7 +7,7 @@ import LessonEditor from './pages/LessonEditor';
 function App() {
   return (
     <Router basename={import.meta.env.BASE_URL}>
-      <div className="min-h-screen font-sans">
+      <div className="min-h-screen font-sans bg-slate-950 text-slate-50">
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />

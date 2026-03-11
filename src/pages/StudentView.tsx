@@ -32,7 +32,7 @@ function MaterialViewer({ material }: { material: Material }) {
   }
 
   return (
-    <div className="w-full h-full bg-slate-100 flex items-center justify-center p-4">
+    <div className="w-full h-full bg-slate-900 flex items-center justify-center p-4">
       <img 
         src={material.url} 
         alt={material.title || 'Lesson material image'} 
@@ -108,30 +108,30 @@ export default function StudentView() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col md:flex-row">
+    <div className="min-h-screen bg-slate-950 flex flex-col md:flex-row">
       {/* Mobile Header (Hidden on Desktop) */}
       <header className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center z-20">
         <h1 className="font-bold truncate text-lg">{lessonTitle}</h1>
         <button 
           onClick={() => navigate('/')}
-          className="text-slate-300 hover:text-white transition-colors"
+          className="text-slate-200 hover:text-white transition-colors"
         >
           <LogOut size={20} />
         </button>
       </header>
       
       {/* Sidebar Navigation */}
-      <aside className="hidden md:flex flex-col w-80 bg-slate-50 border-r border-slate-200 h-screen sticky top-0">
-        <div className="p-6 border-b border-slate-200">
+      <aside className="hidden md:flex flex-col w-80 bg-slate-900 border-r border-slate-800 h-screen sticky top-0">
+        <div className="p-6 border-b border-slate-800">
           <button 
             onClick={() => navigate('/')}
-            className="flex items-center text-slate-500 hover:text-slate-800 text-sm font-medium transition-colors mb-6 group gap-2"
+            className="flex items-center text-slate-400 hover:text-slate-200 text-sm font-medium transition-colors mb-6 group gap-2"
           >
             <LogOut size={16} className="group-hover:-translate-x-1 transition-transform" />
             Exit Lesson
           </button>
-          <h2 className="text-2xl font-bold text-slate-900 font-serif leading-tight">{lessonTitle}</h2>
-          <div className="mt-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-cyan-100 text-cyan-800 uppercase tracking-wider">
+          <h2 className="text-2xl font-bold text-slate-50 font-serif leading-tight">{lessonTitle}</h2>
+          <div className="mt-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-cyan-900/40 text-cyan-300 uppercase tracking-wider">
             {classCode}
           </div>
         </div>
@@ -143,11 +143,11 @@ export default function StudentView() {
               onClick={() => setCurrentIndex(index)}
               className={`w-full text-left p-4 rounded-xl transition-all flex items-center gap-3 ${
                 currentIndex === index 
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200' 
-                  : 'hover:bg-slate-200 text-slate-600'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/20' 
+                  : 'hover:bg-slate-800 text-slate-200'
               }`}
             >
-              <div className={`p-2 rounded-lg ${currentIndex === index ? 'bg-indigo-500 text-white' : 'bg-white text-slate-400'}`}>
+              <div className={`p-2 rounded-lg ${currentIndex === index ? 'bg-indigo-500 text-white' : 'bg-slate-800 text-slate-400'}`}>
                  {material.type === 'video' ? <PlayCircle size={18} /> : <ImageIcon size={18} />}
               </div>
               <div className="flex-1 min-w-0">
@@ -163,7 +163,7 @@ export default function StudentView() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col items-center bg-slate-100 relative max-h-screen overflow-hidden">
+      <main className="flex-1 flex flex-col items-center bg-slate-900 relative max-h-screen overflow-hidden">
         
         {/* Viewer */}
         <div className="w-full flex-1 flex items-center justify-center p-0 md:p-8 overflow-hidden relative">
@@ -174,12 +174,12 @@ export default function StudentView() {
                  <p>Loading lesson materials...</p>
                </div>
              ) : lessonTitle === 'Lesson not found' ? (
-               <div className="text-slate-400 m-auto flex flex-col items-center gap-4">
+               <div className="text-slate-500 m-auto flex flex-col items-center gap-4">
                  <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-2">
                    <LogOut size={24} className="text-slate-500" />
                  </div>
-                 <h2 className="text-xl font-bold text-slate-300">Class Code Invalid</h2>
-                 <p className="text-slate-500 text-center max-w-sm">
+                 <h2 className="text-xl font-bold text-slate-200">Class Code Invalid</h2>
+                 <p className="text-slate-400 text-center max-w-sm">
                    We couldn't find a lesson with the code "{classCode}". Please check the code and try again.
                  </p>
                </div>
@@ -195,10 +195,10 @@ export default function StudentView() {
         </div>
 
         {/* Navigation Controls */}
-        <div className="w-full bg-white border-t border-slate-200 p-4 md:p-6 flex items-center justify-between shadow-lg z-10 sticky bottom-0">
+        <div className="w-full bg-slate-900 border-t border-slate-800 p-4 md:p-6 flex items-center justify-between shadow-lg z-10 sticky bottom-0">
           <div className="hidden md:block w-1/3">
              {/* Spacer for centering */}
-             <span className="text-slate-500 font-medium text-sm">
+             <span className="text-slate-400 font-medium text-sm">
                 Material {currentIndex + 1} of {materials.length}
              </span>
           </div>
@@ -208,7 +208,7 @@ export default function StudentView() {
               onClick={prevMaterial}
               disabled={isFirst}
               className="px-5 py-3 rounded-full flex items-center gap-2 font-medium transition-all
-              disabled:opacity-40 disabled:cursor-not-allowed bg-slate-100 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95"
+              disabled:opacity-40 disabled:cursor-not-allowed bg-slate-900 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95"
             >
               <ChevronLeft size={20} /> Previous
             </button>
@@ -219,7 +219,7 @@ export default function StudentView() {
               onClick={nextMaterial}
               disabled={isLast}
               className="px-5 py-3 rounded-full flex items-center gap-2 font-medium transition-all shadow-md
-              disabled:opacity-40 disabled:cursor-not-allowed bg-slate-900 text-white hover:bg-black hover:scale-105 active:scale-95"
+              disabled:opacity-40 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-500 hover:scale-105 active:scale-95"
             >
               Next <ChevronRight size={20} />
             </button>

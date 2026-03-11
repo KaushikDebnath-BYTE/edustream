@@ -74,23 +74,23 @@ export default function UploadImageModal({ isOpen, onClose, onUpload }: UploadIm
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative">
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-slate-900 rounded-3xl p-8 max-w-md w-full shadow-2xl relative">
         <button 
           onClick={onClose}
           disabled={isUploading}
-          className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+          className="absolute top-6 right-6 text-slate-500 hover:text-slate-300 transition-colors disabled:opacity-50"
         >
           <X size={24} />
         </button>
         
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-xl flex items-center justify-center">
+          <div className="w-12 h-12 bg-indigo-900/40 text-indigo-400 rounded-xl flex items-center justify-center">
             <ImageIcon size={28} />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-slate-800 font-serif">Upload Image</h2>
-            <p className="text-slate-500 text-sm">PNG, JPG, up to 10MB</p>
+            <h2 className="text-2xl font-bold text-slate-50 font-serif">Upload Image</h2>
+            <p className="text-slate-400 text-sm">PNG, JPG, up to 10MB</p>
           </div>
         </div>
 
@@ -101,7 +101,7 @@ export default function UploadImageModal({ isOpen, onClose, onUpload }: UploadIm
           onClick={() => !isUploading && fileInputRef.current?.click()}
           className={`
             border-2 border-dashed rounded-2xl p-10 text-center transition-all cursor-pointer
-            ${isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 hover:border-indigo-400 hover:bg-slate-50'}
+            ${isDragging ? 'border-indigo-500 bg-indigo-900/20' : 'border-slate-700 hover:border-indigo-400 hover:bg-slate-800'}
             ${isUploading ? 'opacity-50 pointer-events-none' : ''}
           `}
         >
@@ -117,12 +117,12 @@ export default function UploadImageModal({ isOpen, onClose, onUpload }: UploadIm
             {isUploading ? (
                <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
             ) : (
-              <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center text-slate-400">
+              <div className="w-16 h-16 bg-slate-800 rounded-full shadow-sm flex items-center justify-center text-slate-500">
                 <UploadCloud size={32} />
               </div>
             )}
             <div>
-              <p className="font-medium text-slate-700 text-lg">
+              <p className="font-medium text-slate-300 text-lg">
                 {isUploading ? 'Uploading...' : 'Click or drag image to upload'}
               </p>
             </div>

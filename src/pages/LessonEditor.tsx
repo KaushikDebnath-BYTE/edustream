@@ -46,17 +46,17 @@ function SortableMaterialItem({ material, onDelete }: { material: Material, onDe
     <div 
       ref={setNodeRef} 
       style={style} 
-      className={`bg-white rounded-2xl border ${isDragging ? 'border-indigo-500 shadow-xl scale-[1.02]' : 'border-slate-200 shadow-sm'} p-4 flex items-center gap-4 transition-all group`}
+      className={`bg-slate-900 rounded-2xl border ${isDragging ? 'border-indigo-500 shadow-xl scale-[1.02]' : 'border-slate-800 shadow-sm'} p-4 flex items-center gap-4 transition-all group`}
     >
       <div 
         {...attributes} 
         {...listeners}
-        className="cursor-grab hover:bg-slate-100 p-2 rounded-lg text-slate-400 hover:text-slate-600 active:cursor-grabbing transition-colors"
+        className="cursor-grab hover:bg-slate-800 p-2 rounded-lg text-slate-500 hover:text-slate-300 active:cursor-grabbing transition-colors"
       >
         <GripVertical size={20} />
       </div>
       
-      <div className="w-32 h-20 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 relative border border-slate-200/50">
+      <div className="w-32 h-20 rounded-xl overflow-hidden bg-slate-800 flex-shrink-0 relative border border-slate-700/50">
         {material.type === 'video' ? (
            <>
             <div className="w-full h-full bg-slate-800 flex items-center justify-center">
@@ -71,15 +71,15 @@ function SortableMaterialItem({ material, onDelete }: { material: Material, onDe
       </div>
 
       <div className="flex-grow min-w-0">
-        <h4 className="font-semibold text-slate-800 line-clamp-1">{material.title || (material.type === 'image' ? 'Image File' : 'YouTube Video')}</h4>
-        <p className="text-sm text-slate-500 capitalize flex items-center gap-1 mt-1">
+        <h4 className="font-semibold text-slate-50 line-clamp-1">{material.title || (material.type === 'image' ? 'Image File' : 'YouTube Video')}</h4>
+        <p className="text-sm text-slate-400 capitalize flex items-center gap-1 mt-1">
           {material.type === 'image' ? <ImageIcon size={14}/> : <Youtube size={14}/>} {material.type}
         </p>
       </div>
 
       <button 
         onClick={() => onDelete(material.id)}
-        className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+        className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
         title="Remove material"
       >
         <Trash2 size={20} />
@@ -284,22 +284,22 @@ export default function LessonEditor() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-20">
+      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button 
               onClick={() => navigate('/dashboard')}
-              className="p-2 -ml-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors"
+              className="p-2 -ml-2 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded-full transition-colors"
             >
               <ArrowLeft size={24} />
             </button>
             <div>
-              <h1 className="text-xl font-bold text-slate-800 line-clamp-1">{lessonTitle}</h1>
+              <h1 className="text-xl font-bold text-slate-50 line-clamp-1">{lessonTitle}</h1>
               <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">Code: {code}</span>
-                <span className="text-xs text-slate-400">Drag items to reorder</span>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300">Code: {code}</span>
+                <span className="text-xs text-slate-500">Drag items to reorder</span>
               </div>
             </div>
           </div>
@@ -307,7 +307,7 @@ export default function LessonEditor() {
           <button 
             onClick={handleSave}
             disabled={isSaving}
-            className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-xl transition-colors shadow-md disabled:opacity-70 flex items-center gap-2"
+            className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-50 text-sm font-medium rounded-xl transition-colors shadow-md disabled:opacity-70 flex items-center gap-2"
           >
             {isSaving ? (
               <>
@@ -349,12 +349,12 @@ export default function LessonEditor() {
               <span className="ml-3 text-slate-500 font-medium">Loading materials...</span>
             </div>
           ) : materials.length === 0 && (
-            <div className="py-16 text-center bg-white rounded-3xl border-2 border-slate-200 border-dashed">
-              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
+            <div className="py-16 text-center bg-slate-900 rounded-3xl border-2 border-slate-800 border-dashed">
+              <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
                 <Plus size={32} />
               </div>
-              <h3 className="text-lg font-medium text-slate-900">Module Empty</h3>
-              <p className="text-slate-500 mt-1 max-w-sm mx-auto">Add images or YouTube videos below to build your lesson.</p>
+              <h3 className="text-lg font-medium text-slate-50">Module Empty</h3>
+              <p className="text-slate-400 mt-1 max-w-sm mx-auto">Add images or YouTube videos below to build your lesson.</p>
             </div>
           )}
         </div>
@@ -362,21 +362,21 @@ export default function LessonEditor() {
       </main>
 
       {/* Action Bar (Fixed at bottom) */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-slate-50 via-slate-50/90 to-transparent pointer-events-none flex justify-center z-10">
-        <div className="bg-white p-2 rounded-2xl shadow-xl border border-slate-200/60 pointer-events-auto flex gap-2 w-full max-w-md">
+      <div className="fixed bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent pointer-events-none flex justify-center z-10">
+        <div className="bg-slate-900 p-2 rounded-2xl shadow-xl border border-slate-800/60 pointer-events-auto flex gap-2 w-full max-w-md">
           <button 
             onClick={() => setIsImageModalOpen(true)}
-            className="flex-1 flex flex-col items-center justify-center gap-1 py-3 hover:bg-indigo-50 text-indigo-600 rounded-xl transition-colors"
+            className="flex-1 flex flex-col items-center justify-center gap-1 py-3 hover:bg-indigo-900/20 text-indigo-400 rounded-xl transition-colors"
           >
             <ImageIcon size={24} />
             <span className="text-xs font-semibold">Add Image</span>
           </button>
           
-          <div className="w-px bg-slate-100 my-2"></div>
+          <div className="w-px bg-slate-800 my-2"></div>
           
           <button 
             onClick={() => setIsVideoModalOpen(true)}
-            className="flex-1 flex flex-col items-center justify-center gap-1 py-3 hover:bg-red-50 text-red-600 rounded-xl transition-colors"
+            className="flex-1 flex flex-col items-center justify-center gap-1 py-3 hover:bg-red-900/20 text-red-400 rounded-xl transition-colors"
           >
             <Youtube size={24} />
             <span className="text-xs font-semibold">Add Video</span>
