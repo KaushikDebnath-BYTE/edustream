@@ -206,7 +206,7 @@ export default function Dashboard() {
                   required
                   autoFocus
                   placeholder="e.g. Introduction to Photosynthesis"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-800 text-slate-50 placeholder-slate-400 border border-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-inner"
                 />
               </div>
               <div className="flex gap-3 justify-end">
