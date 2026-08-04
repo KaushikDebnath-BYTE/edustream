@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Search, Folder, FileText, Video, Image as ImageIcon, Link as LinkIcon, LogOut, Loader2, Play } from 'lucide-react';
+import { Search, Folder, FileText, Video, Image as ImageIcon, Link as LinkIcon, LogOut, Loader2, Play, ArrowLeft } from 'lucide-react';
 
 interface Lesson { id: string; title: string; code: string; }
 interface Subfolder { id: string; title: string; }
 interface Material { id: string; subfolder_id?: string | null; title: string; type: string; url: string; }
 
-// Helper function to extract YouTube ID
 const getYouTubeId = (url: string) => {
   if (!url) return null;
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
@@ -24,6 +23,14 @@ export default function StudentView() {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [subfolders, setSubfolders] = useState<Subfolder[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Detect if the user is a teacher so we can show the Back button
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUserRole(session?.user?.user_metadata?.role || 'student');
+    });
+  }, []);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -78,7 +85,6 @@ export default function StudentView() {
         {mats.map(material => {
           const ytId = material.type === 'video' ? getYouTubeId(material.url) : null;
 
-          // Rich YouTube Card
           if (ytId) {
             return (
               <a key={material.id} href={material.url} target="_blank" rel="noopener noreferrer" className="flex flex-col overflow-hidden bg-slate-950 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all group shadow-sm hover:shadow-blue-900/20">
@@ -98,7 +104,6 @@ export default function StudentView() {
             );
           }
 
-          // Standard Document/Link Card
           return (
             <a key={material.id} href={material.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 bg-slate-950 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all group shadow-sm hover:shadow-blue-900/20">
               <div className="p-2.5 bg-slate-900 rounded-lg group-hover:scale-110 transition-transform">
@@ -122,11 +127,21 @@ export default function StudentView() {
       <div className="max-w-5xl mx-auto">
         
         {/* Header */}
-        <div className="flex justify-between items-center mb-10 pb-4 border-b border-slate-800">
+        <div className="flex flex-wrap gap-4 justify-between items-center mb-10 pb-4 border-b border-slate-800">
           <h1 className="text-2xl font-bold text-slate-50">Student Portal</h1>
-          <button onClick={handleSignOut} className="text-slate-400 hover:text-red-400 flex items-center gap-2 text-sm transition-colors">
-            <LogOut size={16} /> Sign Out
-          </button>
+          <div className="flex items-center gap-4">
+            {userRole === 'teacher' && (
+              <button 
+                onClick={() => navigate('/dashboard')} 
+                className="text-slate-300 hover:text-blue-400 flex items-center gap-1.5 text-sm transition-colors bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800 hover:border-blue-500/50 shadow-sm"
+              >
+                <ArrowLeft size={16} /> Back to Dashboard
+              </button>
+            )}
+            <button onClick={handleSignOut} className="text-slate-400 hover:text-red-400 flex items-center gap-2 text-sm transition-colors">
+              <LogOut size={16} /> Sign Out
+            </button>
+          </div>
         </div>
 
         {/* Search Box */}
