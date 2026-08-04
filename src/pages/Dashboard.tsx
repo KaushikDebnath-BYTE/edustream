@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, BookOpen, LogOut, MoreVertical, Edit2 } from 'lucide-react';
+import { Plus, Search, BookOpen, LogOut, MoreVertical, Edit2, Copy, Check, GraduationCap } from 'lucide-react';
 import { supabase, type Lesson } from '../lib/supabase';
 import { DeleteLessonButton } from '../components/DeleteLessonButton';
 
@@ -10,6 +10,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [isSubmitLoading, setIsSubmitLoading] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -80,6 +81,12 @@ export default function Dashboard() {
     }
   };
 
+  const handleCopyCode = (id: string, code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50">
       {/* Navbar */}
@@ -92,10 +99,19 @@ export default function Dashboard() {
               </div>
               <span className="font-serif font-bold text-xl text-slate-50 tracking-tight">EduStream</span>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <button 
-                onClick={() => navigate('/')}
-                className="text-slate-400 hover:text-red-500 transition-colors flex items-center gap-2 text-sm font-medium"
+                onClick={() => navigate('/student-view')}
+                className="text-slate-400 hover:text-blue-400 transition-colors flex items-center gap-1.5 text-sm font-medium px-2 py-1 rounded-md hover:bg-slate-800"
+                title="Preview Student Portal"
+              >
+                <GraduationCap size={18} />
+                <span className="hidden sm:inline">Student Portal</span>
+              </button>
+              <div className="w-px h-6 bg-slate-800 mx-1 hidden sm:block"></div>
+              <button 
+                onClick={async () => { await supabase.auth.signOut(); navigate('/'); }}
+                className="text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1.5 text-sm font-medium px-2 py-1 rounded-md hover:bg-slate-800"
               >
                 <LogOut size={18} />
                 <span className="hidden sm:inline">Sign Out</span>
@@ -152,10 +168,20 @@ export default function Dashboard() {
             >
               <div className="p-6 flex-grow">
                 <div className="flex justify-between items-start mb-4">
-                  <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-900/40 text-cyan-300 shadow-sm">
-                    Code: {lesson.code}
-                  </div>
-                  <button className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
+                  <button 
+                    onClick={() => handleCopyCode(lesson.id, lesson.code)}
+                    className="group/copy inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-900/20 text-cyan-400 border border-cyan-900/50 hover:bg-cyan-900/40 hover:border-cyan-700 transition-all shadow-sm cursor-pointer"
+                    title="Click to copy student code"
+                  >
+                    <span className="opacity-70">Code:</span> 
+                    <span className="tracking-wider">{lesson.code}</span>
+                    {copiedId === lesson.id ? (
+                      <Check size={14} className="text-emerald-400 ml-1" />
+                    ) : (
+                      <Copy size={14} className="opacity-50 group-hover/copy:opacity-100 transition-opacity ml-1" />
+                    )}
+                  </button>
+                  <button className="text-slate-400 hover:text-slate-200 p-1 rounded-md hover:bg-slate-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
                     <MoreVertical size={18} />
                   </button>
                 </div>
@@ -164,10 +190,10 @@ export default function Dashboard() {
                    {lesson.created_at ? new Date(lesson.created_at).toLocaleDateString() : 'Just now'}
                 </p>
               </div>
-              <div className="bg-slate-950 text-slate-50 px-6 py-4 flex gap-2 border-t border-slate-100">
+              <div className="bg-slate-950 text-slate-50 px-6 py-4 flex gap-2 border-t border-slate-800">
                 <button 
                   onClick={() => navigate(`/lesson/${lesson.id}/edit`)}
-                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-lg text-sm font-medium border border-slate-800 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-lg text-sm font-medium border border-slate-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
                 >
                   <Edit2 size={16} /> Edit Materials
                 </button>
@@ -180,7 +206,7 @@ export default function Dashboard() {
           ))}
           
           {(!isLoading && filteredLessons.length === 0) && (
-            <div className="col-span-full py-12 text-center bg-white rounded-2xl border border-slate-800 border-dashed">
+            <div className="col-span-full py-12 text-center bg-slate-900 rounded-2xl border border-slate-800 border-dashed">
               <div className="mx-auto w-16 h-16 bg-slate-800 text-slate-500 rounded-full flex items-center justify-center mb-4">
                 <Search size={32} />
               </div>
@@ -194,7 +220,7 @@ export default function Dashboard() {
       {/* Create Lesson Modal Placeholder */}
       {isCreating && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm shadow-2xl z-50 flex items-center justify-center p-4 transition-opacity">
-          <div className="bg-slate-900 rounded-3xl p-8 max-w-md w-full shadow-2xl transform transition-all scale-100">
+          <div className="bg-slate-900 rounded-3xl p-8 max-w-md w-full border border-slate-800 shadow-2xl transform transition-all scale-100">
             <h2 className="text-2xl font-bold text-slate-50 mb-2 font-serif">Create New Lesson</h2>
             <p className="text-slate-400 mb-6 text-sm">Give your new lesson module a clear, descriptive title.</p>
             <form onSubmit={handleCreateLesson}>
@@ -206,7 +232,7 @@ export default function Dashboard() {
                   required
                   autoFocus
                   placeholder="e.g. Introduction to Photosynthesis"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-800 text-slate-50 placeholder-slate-400 border border-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-inner"
+                  className="w-full px-4 py-3 rounded-xl bg-slate-950 text-slate-50 placeholder-slate-500 border border-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-inner"
                 />
               </div>
               <div className="flex gap-3 justify-end">
