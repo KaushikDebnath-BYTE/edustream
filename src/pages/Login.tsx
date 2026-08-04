@@ -1,126 +1,127 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, GraduationCap, LogIn } from 'lucide-react';
-
-// Stubbing out Supabase auth for now
-// import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
+import { Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
 
 export default function Login() {
-  const [isTeacherLoading, setIsTeacherLoading] = useState(false);
-  const [isStudentLoading, setIsStudentLoading] = useState(false);
   const navigate = useNavigate();
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleTeacherLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsTeacherLoading(true);
-    // STUB: Simulate login delay
-    setTimeout(() => {
-      setIsTeacherLoading(false);
-      navigate('/dashboard');
-    }, 1000);
-  };
+    setIsLoading(true);
+    setErrorMsg(null);
 
-  const handleStudentAccess = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsStudentLoading(true);
-    const formData = new FormData(e.currentTarget);
-    const classCode = formData.get('classCode') as string;
-    // STUB: Simulate verification
-    setTimeout(() => {
-      setIsStudentLoading(false);
-      if (classCode) {
-        navigate(`/student/${classCode}`);
+    try {
+      if (isSignUp) {
+        // First-time registration
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+        if (error) throw error;
+        alert('Account created successfully! Logging you in...');
+        navigate('/dashboard');
+      } else {
+        // Returning user login
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        navigate('/dashboard');
       }
-    }, 1000);
+    } catch (error: any) {
+      setErrorMsg(error.message || 'An error occurred during authentication.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center p-4">
-      <div className="max-w-4xl w-full grid md:grid-cols-2 gap-8 bg-slate-900 rounded-3xl shadow-xl overflow-hidden border border-slate-800">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 font-sans text-slate-200">
+      <div className="max-w-md w-full bg-slate-900 rounded-2xl shadow-xl border border-slate-800 p-8 relative overflow-hidden">
         
-        {/* Teacher Section */}
-        <div className="p-8 md:p-12 border-b md:border-b-0 md:border-r border-slate-800 relative group">
-          <div className="absolute inset-0 bg-indigo-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <div className="relative">
-            <div className="w-16 h-16 bg-indigo-900/40 text-indigo-400 rounded-2xl flex items-center justify-center mb-6 shadow-sm">
-              <BookOpen size={32} />
-            </div>
-            <h2 className="text-3xl font-bold text-slate-50 mb-2 font-serif">Teacher Portal</h2>
-            <p className="text-slate-400 mb-8">Sign in to manage your lessons and materials.</p>
-            
-            <form onSubmit={handleTeacherLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Email</label>
-                <input 
-                  type="email" 
-                  defaultValue="teacher@edustream.com"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-800 border-slate-700 text-slate-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
-                  placeholder="name@school.edu"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Password</label>
-                <input 
-                  type="password" 
-                  defaultValue="password"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-800 border-slate-700 text-slate-50 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none"
-                  placeholder="••••••••"
-                />
-              </div>
-              <button 
-                type="submit" 
-                disabled={isTeacherLoading}
-                className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors flex items-center justify-center shadow-lg shadow-indigo-900/20 disabled:opacity-70"
-              >
-                {isTeacherLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <LogIn size={20} className="mr-2" /> Sign In
-                  </>
-                )}
-              </button>
-            </form>
-          </div>
+        {/* Decorative Top Border */}
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-emerald-500"></div>
+
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-slate-50 mb-2">EduStream</h1>
+          <p className="text-slate-400 text-sm">
+            {isSignUp ? 'Create a new teacher account' : 'Welcome back to your laboratory'}
+          </p>
         </div>
 
-        {/* Student Section */}
-        <div className="p-8 md:p-12 relative group bg-slate-900/50">
-          <div className="absolute inset-0 bg-cyan-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <div className="relative">
-            <div className="w-16 h-16 bg-cyan-900/40 text-cyan-400 rounded-2xl flex items-center justify-center mb-6 shadow-sm">
-              <GraduationCap size={32} />
-            </div>
-            <h2 className="text-3xl font-bold text-slate-50 mb-2 font-serif">Student Access</h2>
-            <p className="text-slate-400 mb-8">Enter your class code to view materials.</p>
-            
-            <form onSubmit={handleStudentAccess} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">Class Code</label>
-                <input 
-                  type="text" 
-                  name="classCode"
-                  required
-                  defaultValue="DEMO-CLASS"
-                  className="w-full px-4 py-4 rounded-xl border-2 border-slate-700 focus:ring-0 focus:border-cyan-500 transition-all outline-none text-2xl tracking-widest text-center font-mono uppercase bg-slate-800 shadow-inner text-slate-50"
-                  placeholder="ENTER-CODE"
-                />
-              </div>
-              <button 
-                type="submit" 
-                disabled={isStudentLoading}
-                className="w-full py-4 px-4 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-medium transition-transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center shadow-lg disabled:opacity-70 disabled:hover:scale-100"
-              >
-                {isStudentLoading ? (
-                  <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  'Enter Class'
-                )}
-              </button>
-            </form>
+        {errorMsg && (
+          <div className="mb-6 p-3 bg-red-500/10 border border-red-500/50 rounded-lg flex items-start gap-2 text-red-400 text-sm">
+            <AlertCircle size={18} className="shrink-0 mt-0.5" />
+            <p>{errorMsg}</p>
           </div>
-        </div>
+        )}
 
+        <form onSubmit={handleAuth} className="space-y-5">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Email Address</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Mail size={18} className="text-slate-500" />
+              </div>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 text-slate-100 rounded-lg pl-10 pr-3 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-slate-600"
+                placeholder="teacher@school.com"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-400 uppercase tracking-wider">Password</label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Lock size={18} className="text-slate-500" />
+              </div>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 text-slate-100 rounded-lg pl-10 pr-3 py-2.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder-slate-600"
+                placeholder="••••••••"
+                minLength={6}
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition-colors shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 mt-2"
+          >
+            {isLoading ? <Loader2 size={18} className="animate-spin" /> : (isSignUp ? 'Create Account' : 'Sign In')}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center border-t border-slate-800 pt-6">
+          <p className="text-slate-400 text-sm">
+            {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+            <button
+              onClick={() => {
+                setIsSignUp(!isSignUp);
+                setErrorMsg(null);
+              }}
+              className="ml-2 text-blue-400 hover:text-blue-300 font-medium transition-colors focus:outline-none"
+            >
+              {isSignUp ? 'Sign In' : 'Sign Up'}
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );
