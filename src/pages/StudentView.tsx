@@ -1,236 +1,150 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { LogOut, ChevronLeft, ChevronRight, Image as ImageIcon, PlayCircle, Eye } from 'lucide-react';
-import { supabase, type Material } from '../lib/supabase';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { Search, Folder, FileText, Video, Image as ImageIcon, Link as LinkIcon, LogOut, Loader2 } from 'lucide-react';
 
-// Helper component to render material
-function MaterialViewer({ material }: { material: Material }) {
-  if (material.type === 'video') {
-    // Extract ID for embedding
-    const match = material.url.match(/youtu\.be\/([^#&?]*)|watch\?v=([^#&?]*)|embed\/([^#&?]*)/);
-    const videoId = match ? (match[1] || match[2] || match[3]) : null;
-    
-    if (!videoId) {
-      return (
-        <div className="flex-1 flex items-center justify-center bg-slate-900 text-slate-400">
-          Invalid Video URL
-        </div>
-      );
-    }
-    
-    return (
-      <div className="w-full h-full bg-black relative shadow-2xl overflow-hidden aspect-video md:aspect-auto">
-        <iframe
-          src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1&autohide=1&showinfo=0`}
-          title={material.title || 'YouTube video player'}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          className="absolute inset-0 w-full h-full border-0"
-        ></iframe>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full h-full bg-slate-900 flex items-center justify-center p-4">
-      <img 
-        src={material.url} 
-        alt={material.title || 'Lesson material image'} 
-        className="max-w-full max-h-full object-contain drop-shadow-lg rounded-xl"
-      />
-    </div>
-  );
-}
+interface Lesson { id: string; title: string; }
+interface Subfolder { id: string; title: string; }
+interface Material { id: string; subfolder_id?: string | null; title: string; type: string; url: string; }
 
 export default function StudentView() {
-  const { classCode } = useParams();
   const navigate = useNavigate();
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  const [lessonTitle, setLessonTitle] = useState(`Lesson for ${classCode}`);
+  const [lessonCode, setLessonCode] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  
+  const [lesson, setLesson] = useState<Lesson | null>(null);
+  const [subfolders, setSubfolders] = useState<Subfolder[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    let isMounted = true;
-    async function loadLesson() {
-      if (!classCode) return;
-      setIsLoading(true);
-      try {
-        const { data: lessonData, error: lessonError } = await supabase
-          .from('lessons')
-          .select('*')
-          .eq('code', classCode)
-          .maybeSingle();
-          
-        if (lessonError) throw lessonError;
-        
-        if (isMounted) {
-          if (!lessonData) {
-            setLessonTitle('Lesson not found');
-            setIsLoading(false);
-            return;
-          }
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
 
-          setLessonTitle(lessonData.title);
-          
-          const { data: materialsData, error: materialsError } = await supabase
-            .from('materials')
-            .select('*')
-            .eq('lesson_id', lessonData.id)
-            .order('id', { ascending: true });
-            
-          if (materialsError) throw materialsError;
-          if (materialsData && isMounted) {
-            setMaterials(materialsData);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load lesson:', err);
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
+  const fetchLessonData = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!lessonCode.trim()) return;
+    
+    setIsLoading(true);
+    setErrorMsg(null);
+
+    try {
+      // 1. Fetch Lesson
+      const { data: lessonData, error: lessonError } = await supabase
+        .from('lessons').select('*').eq('id', lessonCode).single();
+      
+      if (lessonError || !lessonData) throw new Error("Lesson not found. Please check your code.");
+      setLesson(lessonData);
+
+      // 2. Fetch Folders & Materials
+      const { data: foldersData } = await supabase.from('subfolders').select('*').eq('lesson_id', lessonCode).order('created_at', { ascending: true });
+      const { data: materialsData } = await supabase.from('materials').select('*').eq('lesson_id', lessonCode);
+      
+      if (foldersData) setSubfolders(foldersData);
+      if (materialsData) setMaterials(materialsData);
+      
+    } catch (error: any) {
+      setErrorMsg(error.message);
+      setLesson(null);
+    } finally {
+      setIsLoading(false);
     }
-    loadLesson();
-    return () => { isMounted = false; };
-  }, [classCode]);
-
-  const currentMaterial = materials[currentIndex];
-  const isFirst = currentIndex === 0;
-  const isLast = materials.length > 0 ? currentIndex === materials.length - 1 : true;
-
-  const nextMaterial = () => {
-    if (!isLast) setCurrentIndex(prev => prev + 1);
   };
 
-  const prevMaterial = () => {
-    if (!isFirst) setCurrentIndex(prev => prev - 1);
+  const renderIcon = (type: string) => {
+    switch (type) {
+      case 'video': return <Video size={18} className="text-blue-400" />;
+      case 'image': return <ImageIcon size={18} className="text-emerald-400" />;
+      case 'document': return <FileText size={18} className="text-amber-400" />;
+      default: return <LinkIcon size={18} className="text-slate-400" />;
+    }
   };
+
+  const renderMaterialList = (mats: Material[]) => {
+    if (mats.length === 0) return <p className="text-slate-500 text-sm italic py-4 text-center border border-dashed border-slate-800 rounded-lg mt-2">No materials available.</p>;
+    return mats.map(material => (
+      <a key={material.id} href={material.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-slate-950 rounded-lg border border-slate-800 mt-2 hover:border-blue-500/50 transition-colors group">
+        {renderIcon(material.type)}
+        <span className="text-slate-300 group-hover:text-blue-400 transition-colors font-medium truncate">{material.title}</span>
+      </a>
+    ));
+  };
+
+  const rootMaterials = materials.filter(m => !m.subfolder_id);
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col md:flex-row">
-      {/* Mobile Header (Hidden on Desktop) */}
-      <header className="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center z-20">
-        <h1 className="font-bold truncate text-lg">{lessonTitle}</h1>
-        <button 
-          onClick={() => navigate('/')}
-          className="text-slate-200 hover:text-white transition-colors"
-        >
-          <LogOut size={20} />
-        </button>
-      </header>
-      
-      {/* Sidebar Navigation */}
-      <aside className="hidden md:flex flex-col w-80 bg-slate-900 border-r border-slate-800 h-screen sticky top-0">
-        <div className="p-6 border-b border-slate-800">
-          <button 
-            onClick={() => navigate('/')}
-            className="flex items-center text-slate-400 hover:text-slate-200 text-sm font-medium transition-colors mb-6 group gap-2"
-          >
-            <LogOut size={16} className="group-hover:-translate-x-1 transition-transform" />
-            Exit Lesson
+    <div className="min-h-screen bg-slate-950 font-sans text-slate-200 p-6">
+      <div className="max-w-4xl mx-auto">
+        
+        {/* Header */}
+        <div className="flex justify-between items-center mb-10 pb-4 border-b border-slate-800">
+          <h1 className="text-2xl font-bold text-slate-50">Student Portal</h1>
+          <button onClick={handleSignOut} className="text-slate-400 hover:text-red-400 flex items-center gap-2 text-sm transition-colors">
+            <LogOut size={16} /> Sign Out
           </button>
-          <h2 className="text-2xl font-bold text-slate-50 font-serif leading-tight">{lessonTitle}</h2>
-          <div className="mt-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-cyan-900/40 text-cyan-300 uppercase tracking-wider">
-            {classCode}
-          </div>
         </div>
-        
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {materials.map((material, index) => (
-            <button
-              key={material.id}
-              onClick={() => setCurrentIndex(index)}
-              className={`w-full text-left p-4 rounded-xl transition-all flex items-center gap-3 ${
-                currentIndex === index 
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-900/20' 
-                  : 'hover:bg-slate-800 text-slate-200'
-              }`}
-            >
-              <div className={`p-2 rounded-lg ${currentIndex === index ? 'bg-indigo-500 text-white' : 'bg-slate-800 text-slate-400'}`}>
-                 {material.type === 'video' ? <PlayCircle size={18} /> : <ImageIcon size={18} />}
+
+        {/* Search Box */}
+        {!lesson && (
+          <div className="bg-slate-900 p-8 rounded-2xl border border-slate-800 shadow-xl max-w-md mx-auto text-center">
+            <h2 className="text-xl font-semibold mb-2 text-slate-100">Join a Lesson</h2>
+            <p className="text-slate-400 text-sm mb-6">Enter the lesson code provided by your teacher.</p>
+            
+            <form onSubmit={fetchLessonData} className="space-y-4">
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search size={18} className="text-slate-500" />
+                </div>
+                <input
+                  type="text" required value={lessonCode} onChange={(e) => setLessonCode(e.target.value)}
+                  placeholder="Paste Lesson Code..."
+                  className="w-full bg-slate-950 border border-slate-700 text-slate-100 rounded-lg pl-10 pr-3 py-3 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate">{material.title}</p>
-                <p className={`text-xs ${currentIndex === index ? 'text-indigo-200' : 'text-slate-400'}`}>
-                  Part {index + 1} of {materials.length}
-                </p>
-              </div>
-              {currentIndex === index && <Eye size={16} className="text-indigo-200" />}
-            </button>
-          ))}
-        </div>
-      </aside>
-
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col items-center bg-slate-900 relative max-h-screen overflow-hidden">
-        
-        {/* Viewer */}
-        <div className="w-full flex-1 flex items-center justify-center p-0 md:p-8 overflow-hidden relative">
-          <div className="w-full h-full max-w-6xl mx-auto rounded-none md:rounded-2xl overflow-hidden shadow-2xl flex relative bg-black">
-             {isLoading ? (
-               <div className="text-slate-500 m-auto flex flex-col items-center gap-4">
-                 <div className="w-10 h-10 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin"></div>
-                 <p>Loading lesson materials...</p>
-               </div>
-             ) : lessonTitle === 'Lesson not found' ? (
-               <div className="text-slate-500 m-auto flex flex-col items-center gap-4">
-                 <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mb-2">
-                   <LogOut size={24} className="text-slate-500" />
-                 </div>
-                 <h2 className="text-xl font-bold text-slate-200">Class Code Invalid</h2>
-                 <p className="text-slate-400 text-center max-w-sm">
-                   We couldn't find a lesson with the code "{classCode}". Please check the code and try again.
-                 </p>
-               </div>
-             ) : currentMaterial ? (
-               <MaterialViewer material={currentMaterial} />
-             ) : (
-               <div className="text-slate-500 m-auto flex flex-col items-center gap-2">
-                 <ImageIcon size={48} className="opacity-20" />
-                 <p>No materials available.</p>
-               </div>
-             )}
+              {errorMsg && <p className="text-red-400 text-sm text-left">{errorMsg}</p>}
+              <button disabled={isLoading} type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition-colors shadow-lg shadow-blue-900/20 flex justify-center items-center gap-2">
+                {isLoading ? <Loader2 size={18} className="animate-spin" /> : 'Access Materials'}
+              </button>
+            </form>
           </div>
-        </div>
+        )}
 
-        {/* Navigation Controls */}
-        <div className="w-full bg-slate-900 border-t border-slate-800 p-4 md:p-6 flex items-center justify-between shadow-lg z-10 sticky bottom-0">
-          <div className="hidden md:block w-1/3">
-             {/* Spacer for centering */}
-             <span className="text-slate-400 font-medium text-sm">
-                Material {currentIndex + 1} of {materials.length}
-             </span>
-          </div>
-
-          <div className="flex items-center gap-4 w-full md:w-auto justify-center">
-            <button 
-              onClick={prevMaterial}
-              disabled={isFirst}
-              className="px-5 py-3 rounded-full flex items-center gap-2 font-medium transition-all
-              disabled:opacity-40 disabled:cursor-not-allowed bg-slate-900 text-slate-700 hover:bg-slate-200 hover:scale-105 active:scale-95"
-            >
-              <ChevronLeft size={20} /> Previous
-            </button>
-            <div className="md:hidden text-slate-500 text-sm font-medium mx-2">
-              {currentIndex + 1} / {materials.length}
+        {/* Read-Only Lesson View */}
+        {lesson && (
+          <div className="space-y-6 transform animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center justify-between">
+              <h2 className="text-3xl font-bold text-blue-400">{lesson.title}</h2>
+              <button onClick={() => setLesson(null)} className="text-sm text-slate-400 hover:text-slate-200 underline">View another lesson</button>
             </div>
-            <button 
-              onClick={nextMaterial}
-              disabled={isLast}
-              className="px-5 py-3 rounded-full flex items-center gap-2 font-medium transition-all shadow-md
-              disabled:opacity-40 disabled:cursor-not-allowed bg-indigo-600 text-white hover:bg-indigo-500 hover:scale-105 active:scale-95"
-            >
-              Next <ChevronRight size={20} />
-            </button>
+
+            {/* Root Materials */}
+            {rootMaterials.length > 0 && (
+              <div className="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-sm">
+                <h3 className="text-lg font-semibold mb-2 text-slate-200">Main Materials</h3>
+                {renderMaterialList(rootMaterials)}
+              </div>
+            )}
+
+            {/* Subfolders */}
+            {subfolders.map(folder => {
+              const folderMaterials = materials.filter(m => m.subfolder_id === folder.id);
+              return (
+                <div key={folder.id} className="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-sm relative overflow-hidden">
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 opacity-50"></div>
+                  <h3 className="text-lg font-semibold mb-3 flex items-center gap-2 text-slate-100">
+                    <Folder className="text-blue-400 fill-blue-400/20" size={20} />
+                    {folder.title}
+                  </h3>
+                  <div className="pl-2">
+                    {renderMaterialList(folderMaterials)}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          
-          <div className="hidden md:flex w-1/3 justify-end pointer-events-none">
-            {/* Empty space for balance */}
-          </div>
-        </div>
-        
-      </main>
+        )}
+      </div>
     </div>
   );
 }
