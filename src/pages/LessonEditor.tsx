@@ -96,16 +96,12 @@ export default function LessonEditor() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Map simple frontend IDs to actual database UUIDs
-  // Since you're using '1' in the URL, we need a valid UUID for the database
   const LESSION_ID_MAP: Record<string, string> = {
     '1': '00000000-0000-0000-0000-000000000001',
-    // add more if needed
   };
 
   const dbLessonId = id ? (LESSION_ID_MAP[id] || id) : '';
   
-  // Stub metadata
   const lessonTitle = "Introduction to Cell Biology";
   const code = "BIO-101";
 
@@ -159,46 +155,58 @@ export default function LessonEditor() {
       setMaterials((items) => {
         const oldIndex = items.findIndex(item => item.id === active.id);
         const newIndex = items.findIndex(item => item.id === over.id);
-        
         return arrayMove(items, oldIndex, newIndex);
       });
     }
   };
 
-  const handleAddVideo = (url: string, title: string) => {
+  // THE PROXY WORMHOLE: Automatically fetches YouTube titles!
+  const handleAddVideo = async (url: string, fallbackTitle: string) => {
+    let finalTitle = fallbackTitle || 'YouTube Video';
+    
+    try {
+      const response = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`);
+      const data = await response.json();
+      if (data && data.title) {
+        finalTitle = data.title;
+      }
+    } catch (error) {
+      console.error("Failed to fetch YouTube title via proxy, using fallback.");
+    }
+
     const newMaterial: Material = {
-      id: crypto.randomUUID(), // Use real UUIDs for new items
+      id: crypto.randomUUID(),
       lesson_id: dbLessonId || crypto.randomUUID(),
       type: 'video',
       url: url,
-      title,
+      title: finalTitle,
     };
-    setMaterials([...materials, newMaterial]);
+    
+    // Using a callback inside setMaterials ensures React state updates safely
+    setMaterials(prev => [...prev, newMaterial]);
   };
 
   const handleAddImage = (url: string, title: string) => {
     const newMaterial: Material = {
-      id: crypto.randomUUID(), // Use real UUIDs for new items
+      id: crypto.randomUUID(),
       lesson_id: dbLessonId || crypto.randomUUID(),
       type: 'image',
       url: url,
       title,
     };
-    setMaterials([...materials, newMaterial]);
+    setMaterials(prev => [...prev, newMaterial]);
   };
 
   const handleDelete = (materialId: string) => {
-    setMaterials(materials.filter(m => m.id !== materialId));
+    setMaterials(prev => prev.filter(m => m.id !== materialId));
   };
 
   const handleSave = async () => {
     setIsSaving(true);
-    console.log('Starting save request for materials:', materials);
 
     try {
       if (!dbLessonId) throw new Error("Missing lesson ID");
 
-      // 0. Ensure the lesson itself exists first to satisfy FK constraint
       const { data: existingLesson, error: lessonCheckError } = await supabase
         .from('lessons')
         .select('id')
@@ -206,14 +214,11 @@ export default function LessonEditor() {
         .single();
         
       if (lessonCheckError && lessonCheckError.code !== 'PGRST116') {
-        throw lessonCheckError; // throw if it's not a "Not found" error
+        throw lessonCheckError;
       }
 
-      // If the lesson didn't exist, we must create it now before adding materials
       if (!existingLesson) {
-        // Find current user id or use a fallback for now
         const { data: userData } = await supabase.auth.getUser();
-        
         const { error: insertLessonError } = await supabase
           .from('lessons')
           .insert({
@@ -222,58 +227,39 @@ export default function LessonEditor() {
             code: code,
             teacher_id: userData.user?.id || '00000000-0000-0000-0000-000000000000'
           });
-
         if (insertLessonError) throw insertLessonError;
       }
 
-      // 1. Identify which materials have been deleted since the initial load
       const currentMaterialIds = materials.map((m) => m.id);
       const materialsToDelete = initialMaterials
         .filter((initialMaterial) => !currentMaterialIds.includes(initialMaterial.id))
         .map((m) => m.id);
 
       if (materialsToDelete.length > 0) {
-        const { error: deleteError } = await supabase
-          .from('materials')
-          .delete()
-          .in('id', materialsToDelete);
-
+        const { error: deleteError } = await supabase.from('materials').delete().in('id', materialsToDelete);
         if (deleteError) throw deleteError;
       }
 
-      // 2. Upsert existing and new materials using their consistent UUIDs
       let savedMaterials: Material[] = [];
       if (materials.length > 0) {
         const payload = materials.map((m) => {
-          // If the ID is an older temporary one (e.g., from Math.random()), give it a valid UUID now.
-          // Valid UUIDs have dashes in them, whereas Math.random() generates ids like '0.1234...'
           const isTempId = !m.id.includes('-');
           return {
             id: isTempId ? crypto.randomUUID() : m.id,
-            lesson_id: dbLessonId, // strictly enforce correct lesson association
+            lesson_id: dbLessonId,
             type: m.type,
             url: m.url,
             title: m.title
           };
         });
 
-        const { data: upsertData, error: upsertError } = await supabase
-          .from('materials')
-          .upsert(payload, { onConflict: 'id' })
-          .select();
-
+        const { data: upsertData, error: upsertError } = await supabase.from('materials').upsert(payload, { onConflict: 'id' }).select();
         if (upsertError) throw upsertError;
-        
-        if (upsertData) {
-          savedMaterials = upsertData as Material[];
-        }
+        if (upsertData) savedMaterials = upsertData as Material[];
       }
 
-      // 3. Sync frontend state with the successful save state
       setMaterials(savedMaterials.length > 0 ? savedMaterials : materials);
       setInitialMaterials(savedMaterials.length > 0 ? savedMaterials : materials);
-
-      console.log('Save request completed successfully.');
       navigate('/dashboard');
     } catch (error) {
       console.error('Error during save request:', error);
@@ -358,7 +344,6 @@ export default function LessonEditor() {
             </div>
           )}
         </div>
-
       </main>
 
       {/* Action Bar (Fixed at bottom) */}
