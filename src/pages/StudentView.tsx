@@ -30,16 +30,19 @@ export default function StudentView() {
     setErrorMsg(null);
 
     try {
-      // 1. Fetch Lesson
+      // 1. Fetch Lesson by SHORT CODE
       const { data: lessonData, error: lessonError } = await supabase
-        .from('lessons').select('*').eq('id', lessonCode).single();
+        .from('lessons')
+        .select('*')
+        .eq('code', lessonCode.toUpperCase().trim())
+        .single();
       
       if (lessonError || !lessonData) throw new Error("Lesson not found. Please check your code.");
       setLesson(lessonData);
 
-      // 2. Fetch Folders & Materials
-      const { data: foldersData } = await supabase.from('subfolders').select('*').eq('lesson_id', lessonCode).order('created_at', { ascending: true });
-      const { data: materialsData } = await supabase.from('materials').select('*').eq('lesson_id', lessonCode);
+      // 2. Fetch Folders & Materials using the real UUID (lessonData.id)
+      const { data: foldersData } = await supabase.from('subfolders').select('*').eq('lesson_id', lessonData.id).order('created_at', { ascending: true });
+      const { data: materialsData } = await supabase.from('materials').select('*').eq('lesson_id', lessonData.id);
       
       if (foldersData) setSubfolders(foldersData);
       if (materialsData) setMaterials(materialsData);
