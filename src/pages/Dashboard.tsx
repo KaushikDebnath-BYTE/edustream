@@ -1,260 +1,197 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, BookOpen, LogOut, MoreVertical, Edit2, Copy, Check, GraduationCap } from 'lucide-react';
-import { supabase, type Lesson } from '../lib/supabase';
-import { DeleteLessonButton } from '../components/DeleteLessonButton';
+import { supabase } from '../lib/supabase';
+import { Plus, Key, LogOut, BookOpen, Loader2, ArrowRight } from 'lucide-react';
+
+interface Lesson { id: string; title: string; code: string; created_at: string; }
 
 export default function Dashboard() {
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
-  const [isSubmitLoading, setIsSubmitLoading] = useState(false);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const [myClasses, setMyClasses] = useState<Lesson[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [joinCode, setJoinCode] = useState('');
+  const [joinError, setJoinError] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    let isMounted = true;
-    const fetchLessons = async () => {
-      try {
-        setIsLoading(true);
-        const { data, error } = await supabase
-          .from('lessons')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        
-        if (isMounted && data) {
-          setLessons(data as Lesson[]);
-        }
-      } catch (err) {
-        console.error('Error fetching lessons:', err);
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
-    };
-    
-    fetchLessons();
-    return () => { isMounted = false; };
+    fetchUserAndClasses();
   }, []);
 
-  const filteredLessons = lessons.filter(lesson => 
-    lesson.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    lesson.code.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const handleCreateLesson = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsSubmitLoading(true);
+  const fetchUserAndClasses = async () => {
+    setIsLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
     
-    try {
-      const formData = new FormData(e.currentTarget);
-      const title = formData.get('title') as string;
-      const classCode = Array.from({length: 6}, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 36)]).join('');
-      
-      const { data: userData } = await supabase.auth.getUser();
-      
-      const newLessonData = {
-        title,
-        code: classCode,
-        teacher_id: userData.user?.id || '00000000-0000-0000-0000-000000000000'
-      };
-      
-      const { data, error } = await supabase
-        .from('lessons')
-        .insert(newLessonData)
-        .select()
-        .single();
-        
-      if (error) throw error;
-      
-      if (data) {
-        setIsCreating(false);
-        navigate(`/lesson/${data.id}/edit`);
-      }
-    } catch (err) {
-      console.error('Error creating lesson:', err);
-      alert('Failed to create lesson. Please try again.');
-    } finally {
-      setIsSubmitLoading(false);
+    if (!session) {
+      navigate('/');
+      return;
+    }
+    
+    setUserId(session.user.id);
+
+    // Fetch ONLY the classes created by this specific teacher
+    const { data, error } = await supabase
+      .from('lessons')
+      .select('*')
+      .eq('teacher_id', session.user.id)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      setMyClasses(data);
+    }
+    setIsLoading(false);
+  };
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/');
+  };
+
+  const generateCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+  const handleCreateClass = async () => {
+    const title = window.prompt("Enter a name for your new class (e.g., 'Advanced Physics'):");
+    if (!title || !title.trim() || !userId) return;
+
+    const newId = crypto.randomUUID();
+    const newCode = generateCode();
+
+    const { error } = await supabase.from('lessons').insert({
+      id: newId,
+      title: title.trim(),
+      code: newCode,
+      teacher_id: userId
+    });
+
+    if (!error) {
+      navigate(`/editor/${newId}`);
+    } else {
+      alert("Failed to create class. Please try again.");
     }
   };
 
-  const handleCopyCode = (id: string, code: string) => {
-    navigator.clipboard.writeText(code);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+  const handleJoinClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!joinCode.trim()) return;
+    
+    setIsJoining(true);
+    setJoinError('');
+
+    const { data, error } = await supabase
+      .from('lessons')
+      .select('id')
+      .eq('code', joinCode.toUpperCase().trim())
+      .single();
+
+    if (error || !data) {
+      setJoinError("Invalid code. Classroom not found.");
+      setIsJoining(false);
+    } else {
+      // Phase into the other teacher's dashboard
+      navigate(`/editor/${data.id}`);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50">
-      {/* Navbar */}
-      <nav className="bg-slate-900 border-b border-slate-800 sticky top-0 z-10 transition-all shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-2">
-              <div className="bg-indigo-600 text-white p-1.5 rounded-lg shadow-md">
-                <BookOpen size={24} />
-              </div>
-              <span className="font-serif font-bold text-xl text-slate-50 tracking-tight">EduStream</span>
+    <div className="min-h-screen bg-slate-950 font-sans text-slate-200">
+      {/* Header */}
+      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-20">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20">
+              <BookOpen className="text-white" size={20} />
             </div>
-            <div className="flex items-center gap-2 sm:gap-4">
-              <button 
-                onClick={() => navigate('/student-view')}
-                className="text-slate-400 hover:text-blue-400 transition-colors flex items-center gap-1.5 text-sm font-medium px-2 py-1 rounded-md hover:bg-slate-800"
-                title="Preview Student Portal"
-              >
-                <GraduationCap size={18} />
-                <span className="hidden sm:inline">Student Portal</span>
-              </button>
-              <div className="w-px h-6 bg-slate-800 mx-1 hidden sm:block"></div>
-              <button 
-                onClick={async () => { await supabase.auth.signOut(); navigate('/'); }}
-                className="text-slate-400 hover:text-red-500 transition-colors flex items-center gap-1.5 text-sm font-medium px-2 py-1 rounded-md hover:bg-slate-800"
-              >
-                <LogOut size={18} />
-                <span className="hidden sm:inline">Sign Out</span>
-              </button>
-            </div>
+            <h1 className="text-xl font-bold text-slate-50">Teacher Dashboard</h1>
           </div>
+          <button onClick={handleSignOut} className="text-slate-400 hover:text-red-400 flex items-center gap-2 text-sm transition-colors">
+            <LogOut size={16} /> Sign Out
+          </button>
         </div>
-      </nav>
+      </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-50">My Lessons</h1>
-            <p className="text-slate-400 mt-1">Manage and organize your learning materials.</p>
-          </div>
+      <main className="max-w-6xl mx-auto px-6 py-12">
+        {/* Gateway Controls */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
           
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search Bar */}
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search size={18} className="text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-              </div>
-              <input
-                type="text"
-                placeholder="Search lessons..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="block w-full sm:w-64 pl-10 pr-3 py-2 border border-slate-800 rounded-xl leading-5 bg-slate-900 text-slate-50 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all shadow-sm"
-              />
+          {/* Create New Dimension */}
+          <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-center items-start group hover:border-blue-500/50 transition-all">
+            <div className="w-12 h-12 bg-blue-900/30 rounded-2xl flex items-center justify-center mb-6 border border-blue-500/20 group-hover:scale-110 transition-transform">
+              <Plus className="text-blue-400" size={24} />
             </div>
-            
-            <button 
-              onClick={() => setIsCreating(true)}
-              className="bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white px-5 py-2 rounded-xl font-medium flex items-center justify-center gap-2 transition-all shadow-md shadow-indigo-900/20"
-            >
-              <Plus size={20} />
-              New Lesson
+            <h2 className="text-2xl font-bold text-slate-50 mb-2">Create New Class</h2>
+            <p className="text-slate-400 text-sm mb-8">Set up a brand new, isolated dashboard for your students and generate a unique join code.</p>
+            <button onClick={handleCreateClass} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3.5 rounded-xl transition-colors shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2">
+              Initialize Dashboard <ArrowRight size={18} />
             </button>
           </div>
-        </div>
 
-        {/* Lessons Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {isLoading ? (
-            <div className="col-span-full py-12 flex justify-center items-center">
-              <div className="w-8 h-8 border-4 border-slate-700 border-t-indigo-500 rounded-full animate-spin"></div>
-              <span className="ml-3 text-slate-400 font-medium">Loading lessons...</span>
+          {/* Phase Into Existing Dimension */}
+          <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl flex flex-col justify-center items-start">
+            <div className="w-12 h-12 bg-emerald-900/30 rounded-2xl flex items-center justify-center mb-6 border border-emerald-500/20">
+              <Key className="text-emerald-400" size={24} />
             </div>
-          ) : filteredLessons.map((lesson) => (
-            <div 
-              key={lesson.id} 
-              className="bg-slate-900 rounded-2xl border border-slate-800 shadow-sm hover:shadow-xl hover:border-indigo-500/50 transition-all duration-300 group flex flex-col overflow-hidden"
-            >
-              <div className="p-6 flex-grow">
-                <div className="flex justify-between items-start mb-4">
-                  <button 
-                    onClick={() => handleCopyCode(lesson.id, lesson.code)}
-                    className="group/copy inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-cyan-900/20 text-cyan-400 border border-cyan-900/50 hover:bg-cyan-900/40 hover:border-cyan-700 transition-all shadow-sm cursor-pointer"
-                    title="Click to copy student code"
-                  >
-                    <span className="opacity-70">Code:</span> 
-                    <span className="tracking-wider">{lesson.code}</span>
-                    {copiedId === lesson.id ? (
-                      <Check size={14} className="text-emerald-400 ml-1" />
-                    ) : (
-                      <Copy size={14} className="opacity-50 group-hover/copy:opacity-100 transition-opacity ml-1" />
-                    )}
-                  </button>
-                  <button className="text-slate-400 hover:text-slate-200 p-1 rounded-md hover:bg-slate-800 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100">
-                    <MoreVertical size={18} />
-                  </button>
-                </div>
-                <h3 className="text-xl font-bold text-slate-50 mb-2 line-clamp-2">{lesson.title}</h3>
-                <p className="text-xs text-slate-500 flex items-center gap-1">
-                   {lesson.created_at ? new Date(lesson.created_at).toLocaleDateString() : 'Just now'}
-                </p>
-              </div>
-              <div className="bg-slate-950 text-slate-50 px-6 py-4 flex gap-2 border-t border-slate-800">
-                <button 
-                  onClick={() => navigate(`/lesson/${lesson.id}/edit`)}
-                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-lg text-sm font-medium border border-slate-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <Edit2 size={16} /> Edit Materials
-                </button>
-                <DeleteLessonButton 
-                  lessonId={lesson.id} 
-                  onSuccess={() => setLessons(prev => prev.filter(l => l.id !== lesson.id))} 
+            <h2 className="text-2xl font-bold text-slate-50 mb-2">Access Shared Dashboard</h2>
+            <p className="text-slate-400 text-sm mb-6">Enter a code provided by another teacher to view or co-edit their classroom materials.</p>
+            
+            <form onSubmit={handleJoinClass} className="w-full space-y-4">
+              <div className="relative">
+                <input
+                  type="text" required value={joinCode} onChange={(e) => setJoinCode(e.target.value)}
+                  placeholder="e.g. RNPP5R"
+                  className="w-full bg-slate-950 border border-slate-700 text-slate-100 rounded-xl px-4 py-3.5 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all uppercase placeholder:normal-case font-mono tracking-widest"
                 />
               </div>
-            </div>
-          ))}
+              {joinError && <p className="text-red-400 text-sm">{joinError}</p>}
+              <button disabled={isJoining} type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3.5 rounded-xl transition-colors shadow-lg shadow-emerald-900/20 flex justify-center items-center gap-2">
+                {isJoining ? <Loader2 size={18} className="animate-spin" /> : 'Connect to Dashboard'}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* My Workspaces List */}
+        <div>
+          <h3 className="text-xl font-bold text-slate-50 mb-6 flex items-center gap-2">
+            Your Active Dashboards
+          </h3>
           
-          {(!isLoading && filteredLessons.length === 0) && (
-            <div className="col-span-full py-12 text-center bg-slate-900 rounded-2xl border border-slate-800 border-dashed">
-              <div className="mx-auto w-16 h-16 bg-slate-800 text-slate-500 rounded-full flex items-center justify-center mb-4">
-                <Search size={32} />
-              </div>
-              <h3 className="text-lg font-medium text-slate-50 mb-1">No lessons found</h3>
-              <p className="text-slate-500">Try adjusting your search or create a new lesson.</p>
+          {isLoading ? (
+            <div className="py-12 flex justify-center"><Loader2 className="animate-spin text-blue-500" size={32} /></div>
+          ) : myClasses.length === 0 ? (
+            <div className="bg-slate-900/50 rounded-2xl border-2 border-slate-800 border-dashed p-12 text-center">
+              <p className="text-slate-400">You haven't created any classes yet. Initialize your first dashboard above.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {myClasses.map(lesson => (
+                <button 
+                  key={lesson.id} 
+                  onClick={() => navigate(`/editor/${lesson.id}`)}
+                  className="flex flex-col text-left p-6 bg-slate-900 rounded-2xl border border-slate-800 hover:border-blue-500/50 transition-all group shadow-sm hover:shadow-blue-900/20"
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="p-2.5 bg-slate-950 rounded-lg group-hover:bg-blue-900/30 transition-colors">
+                      <BookOpen size={20} className="text-blue-400" />
+                    </div>
+                    <span className="px-2.5 py-1 bg-slate-950 rounded-md border border-slate-800 text-xs font-mono text-slate-400 group-hover:text-slate-200 transition-colors">
+                      {lesson.code}
+                    </span>
+                  </div>
+                  <h4 className="font-semibold text-lg text-slate-100 group-hover:text-blue-400 transition-colors truncate w-full">{lesson.title}</h4>
+                  <span className="text-sm text-slate-500 mt-1">Click to edit materials →</span>
+                </button>
+              ))}
             </div>
           )}
         </div>
       </main>
-
-      {/* Create Lesson Modal Placeholder */}
-      {isCreating && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm shadow-2xl z-50 flex items-center justify-center p-4 transition-opacity">
-          <div className="bg-slate-900 rounded-3xl p-8 max-w-md w-full border border-slate-800 shadow-2xl transform transition-all scale-100">
-            <h2 className="text-2xl font-bold text-slate-50 mb-2 font-serif">Create New Lesson</h2>
-            <p className="text-slate-400 mb-6 text-sm">Give your new lesson module a clear, descriptive title.</p>
-            <form onSubmit={handleCreateLesson}>
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-slate-300 mb-2">Lesson Title</label>
-                <input 
-                  type="text" 
-                  name="title"
-                  required
-                  autoFocus
-                  placeholder="e.g. Introduction to Photosynthesis"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-950 text-slate-50 placeholder-slate-500 border border-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all outline-none shadow-inner"
-                />
-              </div>
-              <div className="flex gap-3 justify-end">
-                <button 
-                  type="button" 
-                  onClick={() => setIsCreating(false)}
-                  className="px-5 py-2.5 text-slate-300 hover:bg-slate-800 font-medium rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  disabled={isSubmitLoading}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors shadow-md shadow-indigo-900/20 disabled:opacity-70 flex items-center gap-2"
-                >
-                  {isSubmitLoading ? 'Creating...' : 'Create Lesson'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
