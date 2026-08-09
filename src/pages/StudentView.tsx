@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Search, Folder, FileText, Video, Image as ImageIcon, Link as LinkIcon, LogOut, Loader2, Play, ArrowLeft } from 'lucide-react';
+import { Search, Folder, FileText, Video, Image as ImageIcon, Link as LinkIcon, LogOut, Loader2, Play, ArrowLeft, X } from 'lucide-react';
 
 interface Lesson { id: string; title: string; code: string; }
 interface Subfolder { id: string; title: string; }
@@ -14,6 +14,13 @@ const getYouTubeId = (url: string) => {
   return (match && match[2].length === 11) ? match[2] : null;
 };
 
+const getDrivePreviewUrl = (url: string) => {
+  if (url.includes('drive.google.com/file/d/')) {
+    return url.replace(/\/view.*$/, '/preview');
+  }
+  return url;
+};
+
 export default function StudentView() {
   const navigate = useNavigate();
   const [lessonCode, setLessonCode] = useState('');
@@ -24,9 +31,11 @@ export default function StudentView() {
   const [subfolders, setSubfolders] = useState<Subfolder[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [userRole, setUserRole] = useState<string | null>(null);
+  
+  // Lightbox State
+  const [activeMaterial, setActiveMaterial] = useState<Material | null>(null);
 
   useEffect(() => {
-    // Detect if the user is a teacher so we can show the Back button
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUserRole(session?.user?.user_metadata?.role || 'student');
     });
@@ -87,7 +96,7 @@ export default function StudentView() {
 
           if (ytId) {
             return (
-              <a key={material.id} href={material.url} target="_blank" rel="noopener noreferrer" className="flex flex-col overflow-hidden bg-slate-950 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all group shadow-sm hover:shadow-blue-900/20">
+              <button key={material.id} onClick={() => setActiveMaterial(material)} className="flex flex-col text-left overflow-hidden bg-slate-950 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all group shadow-sm hover:shadow-blue-900/20 focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
                   <img src={`https://img.youtube.com/vi/${ytId}/hqdefault.jpg`} alt="Video thumbnail" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity group-hover:scale-105 duration-500" />
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -100,12 +109,12 @@ export default function StudentView() {
                   <span className="text-slate-200 group-hover:text-blue-400 transition-colors font-semibold block line-clamp-2 text-sm">{material.title}</span>
                   <span className="text-slate-500 text-xs mt-1 flex items-center gap-1"><Video size={12}/> Video Lesson</span>
                 </div>
-              </a>
+              </button>
             );
           }
 
           return (
-            <a key={material.id} href={material.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 bg-slate-950 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all group shadow-sm hover:shadow-blue-900/20">
+            <button key={material.id} onClick={() => setActiveMaterial(material)} className="flex items-center text-left gap-3 p-4 bg-slate-950 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all group shadow-sm hover:shadow-blue-900/20 focus:outline-none focus:ring-2 focus:ring-blue-500">
               <div className="p-2.5 bg-slate-900 rounded-lg group-hover:scale-110 transition-transform">
                 {renderIcon(material.type)}
               </div>
@@ -113,7 +122,7 @@ export default function StudentView() {
                 <span className="text-slate-200 group-hover:text-blue-400 transition-colors font-semibold block truncate text-sm">{material.title}</span>
                 <span className="text-slate-500 text-xs capitalize mt-0.5 block">{material.type}</span>
               </div>
-            </a>
+            </button>
           );
         })}
       </div>
@@ -194,7 +203,7 @@ export default function StudentView() {
             {subfolders.map(folder => {
               const folderMaterials = materials.filter(m => m.subfolder_id === folder.id);
               return (
-                <div key={folder.id} className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800 shadow-sm relative overflow-hidden">
+                <div key={folder.id} className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800 shadow-sm relative overflow-hidden mt-6">
                   <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500 opacity-50"></div>
                   <h3 className="text-lg font-semibold flex items-center gap-2 text-slate-100">
                     <Folder className="text-blue-400 fill-blue-400/20" size={20} />
@@ -209,6 +218,53 @@ export default function StudentView() {
           </div>
         )}
       </div>
+
+      {/* IMMERSIVE LIGHTBOX OVERLAY */}
+      {activeMaterial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md transition-opacity">
+          <div className="relative w-full max-w-5xl h-[85vh] flex flex-col bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            
+            {/* Lightbox Header */}
+            <div className="flex items-center justify-between px-6 py-4 bg-slate-950 border-b border-slate-800">
+              <div className="flex items-center gap-3 truncate">
+                {renderIcon(activeMaterial.type)}
+                <h3 className="text-lg font-semibold text-slate-50 truncate pr-4">{activeMaterial.title}</h3>
+              </div>
+              <div className="flex items-center gap-4">
+                <a href={activeMaterial.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-400 hover:text-blue-300 font-medium">
+                  Open Original ↗
+                </a>
+                <button onClick={() => setActiveMaterial(null)} className="p-2 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-full transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Lightbox Content Area */}
+            <div className="flex-1 w-full h-full p-4 md:p-8 bg-slate-950 flex items-center justify-center overflow-hidden">
+              {activeMaterial.type === 'video' ? (
+                <iframe 
+                  src={`https://www.youtube.com/embed/${getYouTubeId(activeMaterial.url)}?autoplay=1`}
+                  className="w-full h-full rounded-xl border border-slate-800 shadow-lg"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              ) : activeMaterial.type === 'document' ? (
+                <iframe 
+                  src={getDrivePreviewUrl(activeMaterial.url)} 
+                  className="w-full h-full rounded-xl bg-white shadow-lg"
+                ></iframe>
+              ) : (
+                <img 
+                  src={activeMaterial.url} 
+                  alt={activeMaterial.title} 
+                  className="max-w-full max-h-full object-contain rounded-xl shadow-lg"
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
