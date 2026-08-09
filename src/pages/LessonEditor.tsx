@@ -13,6 +13,7 @@ import UploadImageModal from '../components/UploadImageModal';
 import AddDocumentModal from '../components/AddDocumentModal';
 
 interface Subfolder { id: string; lesson_id: string; title: string; }
+interface LessonData { id: string; title: string; code: string; }
 
 function SortableMaterialItem({ material, folders, onAssign, onDelete }: { material: Material, folders: Subfolder[], onAssign: (matId: string, folderId: string | null) => void, onDelete: (id: string) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: material.id });
@@ -71,11 +72,9 @@ export default function LessonEditor() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const LESSION_ID_MAP: Record<string, string> = { '1': '00000000-0000-0000-0000-000000000001' };
-  const dbLessonId = id ? (LESSION_ID_MAP[id] || id) : '';
-  const lessonTitle = "Introduction to Cell Biology";
-  const code = "BIO-101";
-
+  const dbLessonId = id || '';
+  
+  const [lesson, setLesson] = useState<LessonData | null>(null);
   const [materials, setMaterials] = useState<Material[]>([]);
   const [initialMaterials, setInitialMaterials] = useState<Material[]>([]);
   const [folders, setFolders] = useState<Subfolder[]>([]);
@@ -84,27 +83,48 @@ export default function LessonEditor() {
   useEffect(() => {
     let isMounted = true;
     const fetchData = async () => {
+      if (!dbLessonId) return;
       try {
         setIsLoading(true);
+        
+        // Fetch dynamic lesson data (Title and Code)
+        const { data: lessonData, error: lessonError } = await supabase
+          .from('lessons')
+          .select('*')
+          .eq('id', dbLessonId)
+          .single();
+          
+        if (lessonError) throw lessonError;
+        if (isMounted && lessonData) setLesson(lessonData as LessonData);
+
+        // Fetch materials and folders
         const [matsRes, foldersRes] = await Promise.all([
           supabase.from('materials').select('*').eq('lesson_id', dbLessonId).order('id', { ascending: true }),
           supabase.from('subfolders').select('*').eq('lesson_id', dbLessonId).order('created_at', { ascending: true })
         ]);
+        
         if (matsRes.error) throw matsRes.error;
         if (foldersRes.error) throw foldersRes.error;
+        
         if (isMounted) {
-          setMaterials(matsRes.data as Material[]);
-          setInitialMaterials(matsRes.data as Material[]);
-          setFolders(foldersRes.data as Subfolder[]);
-          setInitialFolders(foldersRes.data as Subfolder[]);
+          // The || [] prevents undefined mapping crashes
+          setMaterials((matsRes.data as Material[]) || []);
+          setInitialMaterials((matsRes.data as Material[]) || []);
+          setFolders((foldersRes.data as Subfolder[]) || []);
+          setInitialFolders((foldersRes.data as Subfolder[]) || []);
         }
-      } catch (err) { console.error('Supabase fetch error:', err); } finally { if (isMounted) setIsLoading(false); }
+      } catch (err) { 
+        console.error('Supabase fetch error:', err); 
+      } finally { 
+        if (isMounted) setIsLoading(false); 
+      }
     };
-    if (dbLessonId) fetchData();
+    fetchData();
     return () => { isMounted = false; };
   }, [dbLessonId]);
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+  
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
@@ -157,11 +177,6 @@ export default function LessonEditor() {
     setIsSaving(true);
     try {
       if (!dbLessonId) throw new Error("Missing lesson ID");
-      const { data: existingLesson } = await supabase.from('lessons').select('id').eq('id', dbLessonId).single();
-      if (!existingLesson) {
-        const { data: userData } = await supabase.auth.getUser();
-        await supabase.from('lessons').insert({ id: dbLessonId, title: lessonTitle, code: code, teacher_id: userData.user?.id || '00000000-0000-0000-0000-000000000000' });
-      }
 
       const currentFolderIds = folders.map(f => f.id);
       const foldersToDelete = initialFolders.filter(f => !currentFolderIds.includes(f.id)).map(f => f.id);
@@ -184,9 +199,19 @@ export default function LessonEditor() {
           <div className="flex items-center gap-4">
             <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded-full transition-colors"><ArrowLeft size={24} /></button>
             <div>
-              <h1 className="text-xl font-bold text-slate-50 line-clamp-1">{lessonTitle}</h1>
-              <div className="flex items-center gap-2 mt-0.5">
-                <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300">Code: {code}</span>
+              {isLoading ? (
+                <div className="h-6 w-48 bg-slate-800 rounded animate-pulse"></div>
+              ) : (
+                <h1 className="text-xl font-bold text-slate-50 line-clamp-1">{lesson?.title || 'Untitled Class'}</h1>
+              )}
+              <div className="flex items-center gap-2 mt-1">
+                {isLoading ? (
+                  <div className="h-4 w-24 bg-slate-800 rounded animate-pulse"></div>
+                ) : (
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-blue-400 border border-blue-900/50 shadow-sm">
+                    Code: {lesson?.code || '------'}
+                  </span>
+                )}
                 <span className="text-xs text-slate-500">Organize your materials</span>
               </div>
             </div>
@@ -230,7 +255,7 @@ export default function LessonEditor() {
         </div>
       </main>
 
-      {/* Action Bar (Upgraded with 3 buttons) */}
+      {/* Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent pointer-events-none flex justify-center z-10">
         <div className="bg-slate-900 p-2 rounded-2xl shadow-xl border border-slate-800/60 pointer-events-auto flex gap-1 w-full max-w-xl">
           <button onClick={() => setIsImageModalOpen(true)} className="flex-1 flex flex-col items-center justify-center gap-1 py-3 hover:bg-indigo-900/20 text-indigo-400 rounded-xl transition-colors"><ImageIcon size={22} /><span className="text-xs font-semibold">Image</span></button>
