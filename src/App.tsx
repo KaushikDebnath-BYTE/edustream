@@ -77,7 +77,7 @@ function App() {
             }
           />
           <Route
-            path="/lesson/:id/edit"
+            path="/editor/:id"
             element={
               <ProtectedRoute allowedRole="teacher" session={session}>
                 <LessonEditor />
