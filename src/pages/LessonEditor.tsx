@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, Plus, Image as ImageIcon, Youtube, GripVertical, Trash2 
+  ArrowLeft, Plus, Image as ImageIcon, Youtube, GripVertical, Trash2, FolderPlus, Folder 
 } from 'lucide-react';
 import {
   DndContext,
@@ -25,65 +25,54 @@ import { supabase, type Material } from '../lib/supabase';
 import AddVideoModal from '../components/AddVideoModal';
 import UploadImageModal from '../components/UploadImageModal';
 
-// Sortable Item Component
-function SortableMaterialItem({ material, onDelete }: { material: Material, onDelete: (id: string) => void }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: material.id });
+interface Subfolder { id: string; lesson_id: string; title: string; }
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : 1,
-  };
+// Sortable Item Component
+function SortableMaterialItem({ material, folders, onAssign, onDelete }: { material: Material, folders: Subfolder[], onAssign: (matId: string, folderId: string | null) => void, onDelete: (id: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: material.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : 1 };
 
   return (
-    <div 
-      ref={setNodeRef} 
-      style={style} 
-      className={`bg-slate-900 rounded-2xl border ${isDragging ? 'border-indigo-500 shadow-xl scale-[1.02]' : 'border-slate-800 shadow-sm'} p-4 flex items-center gap-4 transition-all group`}
-    >
-      <div 
-        {...attributes} 
-        {...listeners}
-        className="cursor-grab hover:bg-slate-800 p-2 rounded-lg text-slate-500 hover:text-slate-300 active:cursor-grabbing transition-colors"
-      >
-        <GripVertical size={20} />
-      </div>
-      
-      <div className="w-32 h-20 rounded-xl overflow-hidden bg-slate-800 flex-shrink-0 relative border border-slate-700/50">
-        {material.type === 'video' ? (
-           <>
+    <div ref={setNodeRef} style={style} className={`bg-slate-900 rounded-2xl border ${isDragging ? 'border-indigo-500 shadow-xl scale-[1.02]' : 'border-slate-800 shadow-sm'} p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4 transition-all group`}>
+      <div className="flex items-center gap-4 w-full sm:w-auto flex-grow min-w-0">
+        <div {...attributes} {...listeners} className="cursor-grab hover:bg-slate-800 p-2 rounded-lg text-slate-500 hover:text-slate-300 active:cursor-grabbing transition-colors">
+          <GripVertical size={20} />
+        </div>
+        
+        <div className="w-24 h-16 sm:w-32 sm:h-20 rounded-xl overflow-hidden bg-slate-800 flex-shrink-0 relative border border-slate-700/50">
+          {material.type === 'video' ? (
             <div className="w-full h-full bg-slate-800 flex items-center justify-center">
-              <div className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center">
-                <Youtube size={16} />
-              </div>
+              <div className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center"><Youtube size={16} /></div>
             </div>
-           </>
-        ) : (
-          <img src={material.url} alt={material.title || 'Image material'} className="w-full h-full object-cover" />
-        )}
+          ) : (
+            <img src={material.url} alt={material.title || 'Image material'} className="w-full h-full object-cover" />
+          )}
+        </div>
+
+        <div className="flex-grow min-w-0">
+          <h4 className="font-semibold text-slate-50 line-clamp-1">{material.title || (material.type === 'image' ? 'Image File' : 'YouTube Video')}</h4>
+          <p className="text-sm text-slate-400 capitalize flex items-center gap-1 mt-1">
+            {material.type === 'image' ? <ImageIcon size={14}/> : <Youtube size={14}/>} {material.type}
+          </p>
+        </div>
       </div>
 
-      <div className="flex-grow min-w-0">
-        <h4 className="font-semibold text-slate-50 line-clamp-1">{material.title || (material.type === 'image' ? 'Image File' : 'YouTube Video')}</h4>
-        <p className="text-sm text-slate-400 capitalize flex items-center gap-1 mt-1">
-          {material.type === 'image' ? <ImageIcon size={14}/> : <Youtube size={14}/>} {material.type}
-        </p>
-      </div>
+      <div className="flex items-center gap-2 w-full sm:w-auto pl-12 sm:pl-0 mt-2 sm:mt-0">
+        <select 
+          value={material.subfolder_id || ''} 
+          onChange={(e) => onAssign(material.id, e.target.value || null)}
+          className="bg-slate-950 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-1.5 focus:ring-blue-500 focus:border-blue-500 outline-none flex-grow sm:flex-grow-0 max-w-[150px] truncate"
+        >
+          <option value="">Main Material (No Folder)</option>
+          {folders.map(f => (
+            <option key={f.id} value={f.id}>{f.title}</option>
+          ))}
+        </select>
 
-      <button 
-        onClick={() => onDelete(material.id)}
-        className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-        title="Remove material"
-      >
-        <Trash2 size={20} />
-      </button>
+        <button onClick={() => onDelete(material.id)} className="p-2 text-slate-500 hover:text-red-400 hover:bg-red-900/20 rounded-lg transition-colors" title="Remove material">
+          <Trash2 size={20} />
+        </button>
+      </div>
     </div>
   );
 }
@@ -96,10 +85,7 @@ export default function LessonEditor() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const LESSION_ID_MAP: Record<string, string> = {
-    '1': '00000000-0000-0000-0000-000000000001',
-  };
-
+  const LESSION_ID_MAP: Record<string, string> = { '1': '00000000-0000-0000-0000-000000000001' };
   const dbLessonId = id ? (LESSION_ID_MAP[id] || id) : '';
   
   const lessonTitle = "Introduction to Cell Biology";
@@ -107,50 +93,43 @@ export default function LessonEditor() {
 
   const [materials, setMaterials] = useState<Material[]>([]);
   const [initialMaterials, setInitialMaterials] = useState<Material[]>([]);
+  const [folders, setFolders] = useState<Subfolder[]>([]);
+  const [initialFolders, setInitialFolders] = useState<Subfolder[]>([]);
 
   useEffect(() => {
     let isMounted = true;
-    const fetchMaterials = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true);
-        const { data, error } = await supabase
-          .from('materials')
-          .select('*')
-          .eq('lesson_id', dbLessonId)
-          .order('id', { ascending: true });
+        const [matsRes, foldersRes] = await Promise.all([
+          supabase.from('materials').select('*').eq('lesson_id', dbLessonId).order('id', { ascending: true }),
+          supabase.from('subfolders').select('*').eq('lesson_id', dbLessonId).order('created_at', { ascending: true })
+        ]);
 
-        if (error) throw error;
+        if (matsRes.error) throw matsRes.error;
+        if (foldersRes.error) throw foldersRes.error;
 
-        if (isMounted && data) {
-          setMaterials(data as Material[]);
-          setInitialMaterials(data as Material[]);
+        if (isMounted) {
+          setMaterials(matsRes.data as Material[]);
+          setInitialMaterials(matsRes.data as Material[]);
+          setFolders(foldersRes.data as Subfolder[]);
+          setInitialFolders(foldersRes.data as Subfolder[]);
         }
       } catch (err) {
-        console.log('Supabase fetch error (Check RLS policies):', err);
+        console.error('Supabase fetch error:', err);
       } finally {
         if (isMounted) setIsLoading(false);
       }
     };
 
-    if (dbLessonId) {
-      fetchMaterials();
-    }
-
-    return () => {
-      isMounted = false;
-    };
+    if (dbLessonId) fetchData();
+    return () => { isMounted = false; };
   }, [dbLessonId]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
+  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
-
     if (over && active.id !== over.id) {
       setMaterials((items) => {
         const oldIndex = items.findIndex(item => item.id === active.id);
@@ -160,110 +139,81 @@ export default function LessonEditor() {
     }
   };
 
-  // THE PROXY WORMHOLE: Automatically fetches YouTube titles!
+  const handleAddFolder = () => {
+    const title = window.prompt("Enter new folder name:");
+    if (!title || !title.trim()) return;
+    const newFolder: Subfolder = { id: crypto.randomUUID(), lesson_id: dbLessonId, title: title.trim() };
+    setFolders([...folders, newFolder]);
+  };
+
+  const handleAssignFolder = (materialId: string, folderId: string | null) => {
+    setMaterials(prev => prev.map(m => m.id === materialId ? { ...m, subfolder_id: folderId } : m));
+  };
+
+  const handleDeleteFolder = (folderId: string) => {
+    if (window.confirm("Delete this folder? Materials inside will be moved to Main Materials.")) {
+      setFolders(prev => prev.filter(f => f.id !== folderId));
+      setMaterials(prev => prev.map(m => m.subfolder_id === folderId ? { ...m, subfolder_id: null } : m));
+    }
+  };
+
   const handleAddVideo = async (url: string, fallbackTitle: string) => {
     let finalTitle = fallbackTitle || 'YouTube Video';
-    
     try {
       const response = await fetch(`https://noembed.com/embed?url=${encodeURIComponent(url)}`);
       const data = await response.json();
-      if (data && data.title) {
-        finalTitle = data.title;
-      }
-    } catch (error) {
-      console.error("Failed to fetch YouTube title via proxy, using fallback.");
-    }
-
-    const newMaterial: Material = {
-      id: crypto.randomUUID(),
-      lesson_id: dbLessonId || crypto.randomUUID(),
-      type: 'video',
-      url: url,
-      title: finalTitle,
-    };
-    
-    // Using a callback inside setMaterials ensures React state updates safely
-    setMaterials(prev => [...prev, newMaterial]);
+      if (data && data.title) finalTitle = data.title;
+    } catch (error) { console.error("Failed to fetch title."); }
+    setMaterials(prev => [...prev, { id: crypto.randomUUID(), lesson_id: dbLessonId, type: 'video', url, title: finalTitle, subfolder_id: null }]);
   };
 
   const handleAddImage = (url: string, title: string) => {
-    const newMaterial: Material = {
-      id: crypto.randomUUID(),
-      lesson_id: dbLessonId || crypto.randomUUID(),
-      type: 'image',
-      url: url,
-      title,
-    };
-    setMaterials(prev => [...prev, newMaterial]);
+    setMaterials(prev => [...prev, { id: crypto.randomUUID(), lesson_id: dbLessonId, type: 'image', url, title, subfolder_id: null }]);
   };
 
-  const handleDelete = (materialId: string) => {
+  const handleDeleteMaterial = (materialId: string) => {
     setMaterials(prev => prev.filter(m => m.id !== materialId));
   };
 
   const handleSave = async () => {
     setIsSaving(true);
-
     try {
       if (!dbLessonId) throw new Error("Missing lesson ID");
-
-      const { data: existingLesson, error: lessonCheckError } = await supabase
-        .from('lessons')
-        .select('id')
-        .eq('id', dbLessonId)
-        .single();
-        
-      if (lessonCheckError && lessonCheckError.code !== 'PGRST116') {
-        throw lessonCheckError;
-      }
-
+      
+      // Ensure lesson exists
+      const { data: existingLesson } = await supabase.from('lessons').select('id').eq('id', dbLessonId).single();
       if (!existingLesson) {
         const { data: userData } = await supabase.auth.getUser();
-        const { error: insertLessonError } = await supabase
-          .from('lessons')
-          .insert({
-            id: dbLessonId,
-            title: lessonTitle,
-            code: code,
-            teacher_id: userData.user?.id || '00000000-0000-0000-0000-000000000000'
-          });
-        if (insertLessonError) throw insertLessonError;
+        await supabase.from('lessons').insert({ id: dbLessonId, title: lessonTitle, code: code, teacher_id: userData.user?.id || '00000000-0000-0000-0000-000000000000' });
       }
 
-      const currentMaterialIds = materials.map((m) => m.id);
-      const materialsToDelete = initialMaterials
-        .filter((initialMaterial) => !currentMaterialIds.includes(initialMaterial.id))
-        .map((m) => m.id);
-
-      if (materialsToDelete.length > 0) {
-        const { error: deleteError } = await supabase.from('materials').delete().in('id', materialsToDelete);
-        if (deleteError) throw deleteError;
+      // 1. Sync Folders
+      const currentFolderIds = folders.map(f => f.id);
+      const foldersToDelete = initialFolders.filter(f => !currentFolderIds.includes(f.id)).map(f => f.id);
+      if (foldersToDelete.length > 0) await supabase.from('subfolders').delete().in('id', foldersToDelete);
+      
+      if (folders.length > 0) {
+        const folderPayload = folders.map(f => ({ id: !f.id.includes('-') ? crypto.randomUUID() : f.id, lesson_id: dbLessonId, title: f.title }));
+        await supabase.from('subfolders').upsert(folderPayload, { onConflict: 'id' });
       }
 
-      let savedMaterials: Material[] = [];
+      // 2. Sync Materials
+      const currentMaterialIds = materials.map(m => m.id);
+      const materialsToDelete = initialMaterials.filter(m => !currentMaterialIds.includes(m.id)).map(m => m.id);
+      if (materialsToDelete.length > 0) await supabase.from('materials').delete().in('id', materialsToDelete);
+
       if (materials.length > 0) {
-        const payload = materials.map((m) => {
-          const isTempId = !m.id.includes('-');
-          return {
-            id: isTempId ? crypto.randomUUID() : m.id,
-            lesson_id: dbLessonId,
-            type: m.type,
-            url: m.url,
-            title: m.title
-          };
-        });
-
-        const { data: upsertData, error: upsertError } = await supabase.from('materials').upsert(payload, { onConflict: 'id' }).select();
-        if (upsertError) throw upsertError;
-        if (upsertData) savedMaterials = upsertData as Material[];
+        const matPayload = materials.map(m => ({
+          id: !m.id.includes('-') ? crypto.randomUUID() : m.id,
+          lesson_id: dbLessonId, type: m.type, url: m.url, title: m.title, subfolder_id: m.subfolder_id || null
+        }));
+        await supabase.from('materials').upsert(matPayload, { onConflict: 'id' });
       }
 
-      setMaterials(savedMaterials.length > 0 ? savedMaterials : materials);
-      setInitialMaterials(savedMaterials.length > 0 ? savedMaterials : materials);
       navigate('/dashboard');
     } catch (error) {
-      console.error('Error during save request:', error);
-      alert('Failed to save changes. Please try again.');
+      console.error('Save error:', error);
+      alert('Failed to save changes.');
     } finally {
       setIsSaving(false);
     }
@@ -271,59 +221,60 @@ export default function LessonEditor() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
-      {/* Header */}
       <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-20">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => navigate('/dashboard')}
-              className="p-2 -ml-2 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded-full transition-colors"
-            >
-              <ArrowLeft size={24} />
-            </button>
+            <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded-full transition-colors"><ArrowLeft size={24} /></button>
             <div>
               <h1 className="text-xl font-bold text-slate-50 line-clamp-1">{lessonTitle}</h1>
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300">Code: {code}</span>
-                <span className="text-xs text-slate-500">Drag items to reorder</span>
+                <span className="text-xs text-slate-500">Organize your materials</span>
               </div>
             </div>
           </div>
-          
-          <button 
-            onClick={handleSave}
-            disabled={isSaving}
-            className="px-5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-50 text-sm font-medium rounded-xl transition-colors shadow-md disabled:opacity-70 flex items-center gap-2"
-          >
-            {isSaving ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Saving...
-              </>
-            ) : (
-              'Save Changes'
-            )}
+          <button onClick={handleSave} disabled={isSaving} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-xl transition-colors shadow-md shadow-blue-900/20 disabled:opacity-70 flex items-center gap-2">
+            {isSaving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
       </header>
 
       <main className="flex-grow max-w-4xl mx-auto w-full px-4 sm:px-6 py-8 flex flex-col gap-8 pb-32">
+        
+        {/* Folder Management Header */}
+        <div className="flex justify-between items-center bg-slate-900 p-4 rounded-2xl border border-slate-800">
+          <div className="flex items-center gap-2 text-slate-300">
+            <Folder className="text-blue-400" size={20} />
+            <span className="font-medium">Active Folders: {folders.length}</span>
+          </div>
+          <button onClick={handleAddFolder} className="text-sm flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg transition-colors border border-slate-700">
+            <FolderPlus size={16} /> New Folder
+          </button>
+        </div>
+
+        {/* Display Folders so teachers can see/delete them */}
+        {folders.length > 0 && (
+          <div className="flex flex-wrap gap-3">
+            {folders.map(f => (
+              <div key={f.id} className="bg-slate-800/50 border border-slate-700 px-3 py-1.5 rounded-lg flex items-center gap-2 group">
+                <span className="text-sm text-slate-200">{f.title}</span>
+                <button onClick={() => handleDeleteFolder(f.id)} className="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14}/></button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Materials List */}
         <div className="space-y-4">
-          <DndContext 
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext 
-              items={materials.map(m => m.id)}
-              strategy={verticalListSortingStrategy}
-            >
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={materials.map(m => m.id)} strategy={verticalListSortingStrategy}>
               {materials.map((material) => (
                 <SortableMaterialItem 
                   key={material.id} 
                   material={material} 
-                  onDelete={handleDelete}
+                  folders={folders}
+                  onAssign={handleAssignFolder}
+                  onDelete={handleDeleteMaterial}
                 />
               ))}
             </SortableContext>
@@ -331,14 +282,11 @@ export default function LessonEditor() {
           
           {isLoading ? (
             <div className="py-16 flex justify-center items-center">
-              <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-              <span className="ml-3 text-slate-500 font-medium">Loading materials...</span>
+              <div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
             </div>
           ) : materials.length === 0 && (
             <div className="py-16 text-center bg-slate-900 rounded-3xl border-2 border-slate-800 border-dashed">
-              <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400">
-                <Plus size={32} />
-              </div>
+              <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-400"><Plus size={32} /></div>
               <h3 className="text-lg font-medium text-slate-50">Module Empty</h3>
               <p className="text-slate-400 mt-1 max-w-sm mx-auto">Add images or YouTube videos below to build your lesson.</p>
             </div>
@@ -346,39 +294,17 @@ export default function LessonEditor() {
         </div>
       </main>
 
-      {/* Action Bar (Fixed at bottom) */}
+      {/* Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent pointer-events-none flex justify-center z-10">
         <div className="bg-slate-900 p-2 rounded-2xl shadow-xl border border-slate-800/60 pointer-events-auto flex gap-2 w-full max-w-md">
-          <button 
-            onClick={() => setIsImageModalOpen(true)}
-            className="flex-1 flex flex-col items-center justify-center gap-1 py-3 hover:bg-indigo-900/20 text-indigo-400 rounded-xl transition-colors"
-          >
-            <ImageIcon size={24} />
-            <span className="text-xs font-semibold">Add Image</span>
-          </button>
-          
+          <button onClick={() => setIsImageModalOpen(true)} className="flex-1 flex flex-col items-center justify-center gap-1 py-3 hover:bg-indigo-900/20 text-indigo-400 rounded-xl transition-colors"><ImageIcon size={24} /><span className="text-xs font-semibold">Add Image</span></button>
           <div className="w-px bg-slate-800 my-2"></div>
-          
-          <button 
-            onClick={() => setIsVideoModalOpen(true)}
-            className="flex-1 flex flex-col items-center justify-center gap-1 py-3 hover:bg-red-900/20 text-red-400 rounded-xl transition-colors"
-          >
-            <Youtube size={24} />
-            <span className="text-xs font-semibold">Add Video</span>
-          </button>
+          <button onClick={() => setIsVideoModalOpen(true)} className="flex-1 flex flex-col items-center justify-center gap-1 py-3 hover:bg-red-900/20 text-red-400 rounded-xl transition-colors"><Youtube size={24} /><span className="text-xs font-semibold">Add Video</span></button>
         </div>
       </div>
 
-      <AddVideoModal 
-        isOpen={isVideoModalOpen} 
-        onClose={() => setIsVideoModalOpen(false)} 
-        onAdd={(url, title) => handleAddVideo(url, title)}
-      />
-      <UploadImageModal 
-        isOpen={isImageModalOpen} 
-        onClose={() => setIsImageModalOpen(false)} 
-        onUpload={handleAddImage} 
-      />
+      <AddVideoModal isOpen={isVideoModalOpen} onClose={() => setIsVideoModalOpen(false)} onAdd={(url, title) => handleAddVideo(url, title)} />
+      <UploadImageModal isOpen={isImageModalOpen} onClose={() => setIsImageModalOpen(false)} onUpload={handleAddImage} />
     </div>
   );
 }

@@ -21,4 +21,5 @@ export interface Material {
   type: MaterialType;
   url: string;
   title?: string;
+  subfolder_id?: string | null;
 }
