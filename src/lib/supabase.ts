@@ -5,7 +5,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-a
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export type MaterialType = 'image' | 'video';
+export type MaterialType = 'image' | 'video' | 'document';
 
 export interface Lesson {
   id: string;
