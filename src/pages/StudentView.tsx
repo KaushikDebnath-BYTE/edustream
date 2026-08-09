@@ -212,7 +212,7 @@ export default function StudentView() {
                       <BookOpen size={24} />
                     </div>
                     <h3 className="font-semibold text-lg text-slate-100">{lesson.title}</h3>
-                    <button className="mt-auto w-full py-2 bg-slate-950 hover:bg-blue-600/20 hover:text-blue-400 border border-slate-800 rounded-lg text-sm transition-colors">
+                    <button onClick={() => navigate(`/lesson/${lesson.id}`)} className="mt-auto w-full py-2 bg-slate-950 hover:bg-blue-600/20 hover:text-blue-400 border border-slate-800 rounded-lg text-sm transition-colors">
                       View Materials
                     </button>
                   </div>
