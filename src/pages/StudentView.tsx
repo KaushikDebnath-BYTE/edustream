@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Search, Folder, FileText, Video, Image as ImageIcon, Link as LinkIcon, LogOut, Loader2, Play, ArrowLeft, X } from 'lucide-react';
+import { Search, Folder, FileText, Video, Image as ImageIcon, Link as LinkIcon, LogOut, Loader2, Play, ArrowLeft, X, Maximize, Minimize } from 'lucide-react';
 
 interface Lesson { id: string; title: string; code: string; }
 interface Subfolder { id: string; title: string; }
@@ -34,6 +34,7 @@ export default function StudentView() {
   
   // Lightbox State
   const [activeMaterial, setActiveMaterial] = useState<Material | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -44,6 +45,11 @@ export default function StudentView() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     navigate('/');
+  };
+
+  const closeLightbox = () => {
+    setActiveMaterial(null);
+    setIsFullscreen(false); // Reset fullscreen when closing
   };
 
   const fetchLessonData = async (e: React.FormEvent) => {
@@ -221,27 +227,38 @@ export default function StudentView() {
 
       {/* IMMERSIVE LIGHTBOX OVERLAY */}
       {activeMaterial && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md transition-opacity">
-          <div className="relative w-full max-w-5xl h-[85vh] flex flex-col bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-md transition-all duration-300 ${isFullscreen ? 'p-0' : 'p-4 sm:p-6'}`}>
+          <div className={`relative flex flex-col bg-slate-900 shadow-2xl overflow-hidden transition-all duration-300 animate-in zoom-in-95 ${isFullscreen ? 'w-full h-full max-w-full rounded-none border-0' : 'w-full max-w-6xl h-[85vh] rounded-2xl border border-slate-800'}`}>
             
             {/* Lightbox Header */}
-            <div className="flex items-center justify-between px-6 py-4 bg-slate-950 border-b border-slate-800">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-4 bg-slate-950 border-b border-slate-800">
               <div className="flex items-center gap-3 truncate">
                 {renderIcon(activeMaterial.type)}
                 <h3 className="text-lg font-semibold text-slate-50 truncate pr-4">{activeMaterial.title}</h3>
               </div>
-              <div className="flex items-center gap-4">
-                <a href={activeMaterial.url} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-400 hover:text-blue-300 font-medium">
+              <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+                <a href={activeMaterial.url} target="_blank" rel="noopener noreferrer" className="hidden sm:inline-block text-sm text-blue-400 hover:text-blue-300 font-medium mr-2">
                   Open Original ↗
                 </a>
-                <button onClick={() => setActiveMaterial(null)} className="p-2 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-full transition-colors">
+                <div className="hidden sm:block w-px h-5 bg-slate-800"></div>
+                
+                {/* Fullscreen Toggle Button */}
+                <button 
+                  onClick={() => setIsFullscreen(!isFullscreen)} 
+                  className="p-2 text-slate-400 hover:text-blue-400 hover:bg-slate-800 rounded-lg transition-colors"
+                  title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+                >
+                  {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+                </button>
+                
+                <button onClick={closeLightbox} className="p-2 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-full transition-colors ml-1 sm:ml-2">
                   <X size={20} />
                 </button>
               </div>
             </div>
 
             {/* Lightbox Content Area */}
-            <div className="flex-1 w-full h-full p-4 md:p-8 bg-slate-950 flex items-center justify-center overflow-hidden">
+            <div className="flex-1 w-full h-full p-2 sm:p-4 bg-slate-950 flex items-center justify-center overflow-hidden">
               {activeMaterial.type === 'video' ? (
                 <iframe 
                   src={`https://www.youtube.com/embed/${getYouTubeId(activeMaterial.url)}?autoplay=1`}
@@ -252,7 +269,7 @@ export default function StudentView() {
               ) : activeMaterial.type === 'document' ? (
                 <iframe 
                   src={getDrivePreviewUrl(activeMaterial.url)} 
-                  className="w-full h-full rounded-xl bg-white shadow-lg"
+                  className={`w-full h-full bg-white shadow-lg transition-all duration-300 ${isFullscreen ? 'rounded-none border-0' : 'rounded-xl'}`}
                 ></iframe>
               ) : (
                 <img 
