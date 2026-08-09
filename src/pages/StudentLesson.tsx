@@ -55,33 +55,62 @@ export default function StudentLesson() {
         {folders.length === 0 && materials.length === 0 ? (
           <div className="text-center py-12 text-slate-500">Your teacher hasn't added any materials to this lesson yet.</div>
         ) : (
-          folders.map(folder => (
-            <div key={folder.id} className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden">
-              <div className="bg-slate-800/50 px-6 py-4 flex items-center gap-3 border-b border-slate-800">
-                <Folder className="text-blue-400" size={20} />
-                <h2 className="text-lg font-semibold text-slate-100">{folder.title}</h2>
+          <>
+            {/* Render Main Materials (No Folder) */}
+            {materials.filter(m => !m.folder_id).length > 0 && (
+              <div className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-lg">
+                <div className="bg-slate-800/80 px-6 py-4 flex items-center gap-3 border-b border-slate-700">
+                  <FileText className="text-blue-400" size={20} />
+                  <h2 className="text-lg font-semibold text-slate-100">Main Materials</h2>
+                </div>
+                <div className="p-4 space-y-2">
+                  {materials.filter(m => !m.folder_id).map(material => (
+                    <a 
+                      key={material.id} 
+                      href={material.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-4 p-4 rounded-xl hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-700 group"
+                    >
+                      <div className="p-2 bg-slate-950 rounded-lg group-hover:scale-110 transition-transform shadow-sm">
+                        {getIcon(material.type)}
+                      </div>
+                      <span className="font-medium text-slate-300 group-hover:text-white transition-colors">{material.title}</span>
+                    </a>
+                  ))}
+                </div>
               </div>
-              <div className="p-4 space-y-2">
-                {materials.filter(m => m.folder_id === folder.id).map(material => (
-                  <a 
-                    key={material.id} 
-                    href={material.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-4 p-4 rounded-xl hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-700 group"
-                  >
-                    <div className="p-2 bg-slate-950 rounded-lg group-hover:scale-110 transition-transform">
-                      {getIcon(material.type)}
-                    </div>
-                    <span className="font-medium text-slate-300 group-hover:text-white transition-colors">{material.title}</span>
-                  </a>
-                ))}
-                {materials.filter(m => m.folder_id === folder.id).length === 0 && (
-                  <p className="text-slate-500 text-sm px-4 py-2 italic">No materials in this folder.</p>
-                )}
+            )}
+
+            {/* Render Folder Materials */}
+            {folders.map(folder => (
+              <div key={folder.id} className="bg-slate-900 rounded-2xl border border-slate-800 overflow-hidden shadow-lg">
+                <div className="bg-slate-800/50 px-6 py-4 flex items-center gap-3 border-b border-slate-800">
+                  <Folder className="text-blue-400" size={20} />
+                  <h2 className="text-lg font-semibold text-slate-100">{folder.title}</h2>
+                </div>
+                <div className="p-4 space-y-2">
+                  {materials.filter(m => m.folder_id === folder.id).map(material => (
+                    <a 
+                      key={material.id} 
+                      href={material.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-4 p-4 rounded-xl hover:bg-slate-800 transition-colors border border-transparent hover:border-slate-700 group"
+                    >
+                      <div className="p-2 bg-slate-950 rounded-lg group-hover:scale-110 transition-transform shadow-sm">
+                        {getIcon(material.type)}
+                      </div>
+                      <span className="font-medium text-slate-300 group-hover:text-white transition-colors">{material.title}</span>
+                    </a>
+                  ))}
+                  {materials.filter(m => m.folder_id === folder.id).length === 0 && (
+                    <p className="text-slate-500 text-sm px-4 py-2 italic">No materials in this folder.</p>
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            ))}
+          </>
         )}
       </main>
     </div>
