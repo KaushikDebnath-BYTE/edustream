@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import StudentView from './pages/StudentView';
 import LessonEditor from './pages/LessonEditor';
+import StudentLesson from './pages/StudentLesson';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -81,6 +82,14 @@ function App() {
             element={
               <ProtectedRoute allowedRole="teacher" session={session}>
                 <LessonEditor />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/lesson/:id"
+            element={
+              <ProtectedRoute session={session}>
+                <StudentLesson />
               </ProtectedRoute>
             }
           />
